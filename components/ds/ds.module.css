@@ -1,0 +1,413 @@
+/* Design system. Every size is in em, so a screen scales the whole kit by
+ * setting one font-size: the TV does it from the viewport, phones leave it. */
+
+/* --- Wordmark ------------------------------------------------------------ */
+
+.wordmark {
+  font-family: var(--font-display), cursive;
+  font-weight: 400;
+  line-height: 0.86;
+  letter-spacing: 0.005em;
+  color: var(--paper);
+  /* A second ink, printed a hair out of register. */
+  text-shadow: 0.055em 0.055em 0 var(--cherry);
+  transform: rotate(-3deg);
+  display: inline-block;
+}
+
+.wordmark span {
+  display: block;
+}
+
+.wordmark span + span {
+  margin-left: 0.55em;
+  color: var(--butter);
+}
+
+/* --- Title strip --------------------------------------------------------- */
+
+.strip {
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--radius-strip);
+  padding: 0.34em;
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  text-align: center;
+  box-shadow:
+    0 0.1em 0 var(--paper-shade),
+    0 0.6em 1.4em rgb(0 0 0 / 0.35);
+}
+
+.stripFrame {
+  border: 0.14em solid var(--tone);
+  border-radius: calc(var(--radius-strip) * 0.6);
+  overflow: hidden;
+}
+
+.stripLine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.1em;
+  padding: 0.18em 0.7em;
+  font-size: 1.7em;
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: 0.015em;
+  text-wrap: balance;
+}
+
+.stripLine[data-length='long'] {
+  font-size: 1.3em;
+  min-height: 2.75em;
+}
+
+.stripLine[data-length='longer'] {
+  font-size: 1.05em;
+  min-height: 3.4em;
+}
+
+.stripLine[data-asked='true'] {
+  background: color-mix(in srgb, var(--tone) 22%, var(--paper));
+}
+
+.stripText {
+  display: inline-block;
+  transform-origin: 50% 100%;
+  animation: flipIn 520ms var(--ease-spring) both;
+}
+
+.stripLine:last-child .stripText {
+  animation-delay: 220ms;
+}
+
+@keyframes flipIn {
+  from {
+    opacity: 0;
+    transform: perspective(20em) rotateX(-80deg);
+  }
+}
+
+.stripBand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.35em;
+  background: var(--tone);
+}
+
+.stripLabel {
+  padding: 0 1em;
+  border-radius: 99em;
+  background: var(--paper);
+  font-size: 0.72em;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+
+.mystery {
+  display: inline-flex;
+  gap: 0.28em;
+}
+
+.mystery i {
+  width: 0.62em;
+  height: 0.16em;
+  border-radius: 99em;
+  background: var(--ink-soft);
+  opacity: 0.55;
+  animation: mystery 1.2s var(--ease-out) infinite alternate;
+}
+
+.mystery i:nth-child(2n) {
+  animation-delay: 0.2s;
+}
+.mystery i:nth-child(3n) {
+  animation-delay: 0.4s;
+}
+
+@keyframes mystery {
+  to {
+    opacity: 0.18;
+  }
+}
+
+/* --- Key (button) -------------------------------------------------------- */
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 3.1em;
+  padding: 0 1.5em;
+  border: 0;
+  border-radius: var(--radius-key);
+  background: var(--cherry);
+  color: var(--paper);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.25em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--shadow-key);
+  transition:
+    transform 90ms var(--ease-out),
+    box-shadow 90ms var(--ease-out),
+    filter 150ms;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.key:hover {
+  filter: brightness(1.06);
+}
+
+.key:active {
+  transform: translateY(0.2em);
+  box-shadow: 0 0.08em 0 rgb(0 0 0 / 0.38);
+}
+
+.key:disabled {
+  cursor: not-allowed;
+  filter: saturate(0.35) brightness(0.8);
+  transform: none;
+  box-shadow: var(--shadow-key);
+}
+
+.key[data-variant='tone'] {
+  background: var(--tone);
+  color: var(--tone-ink);
+}
+
+.key[data-variant='paper'] {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.key[data-variant='quiet'] {
+  min-height: 2.4em;
+  background: transparent;
+  color: var(--chrome);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  font-size: 1em;
+}
+
+.key[data-block='true'] {
+  display: flex;
+  width: 100%;
+}
+
+/* --- Field --------------------------------------------------------------- */
+
+.field {
+  display: block;
+  width: 100%;
+  min-height: 3.2em;
+  padding: 0 0.8em;
+  border: 0.14em solid var(--tone);
+  border-radius: var(--radius-strip);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-strip), sans-serif;
+  /* 16px minimum, or iOS zooms the page on focus. */
+  font-size: max(1.5em, 16px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: inset 0 0.12em 0 var(--paper-shade);
+}
+
+.field::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.field:focus-visible {
+  outline-offset: 2px;
+}
+
+/* --- Player chip --------------------------------------------------------- */
+
+.chip {
+  display: grid;
+  grid-template-columns: 2.2em 1fr auto;
+  align-items: center;
+  min-height: 2.5em;
+  border-radius: var(--radius-strip);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  overflow: hidden;
+  box-shadow: 0 0.25em 0.7em rgb(0 0 0 / 0.28);
+}
+
+.chipRank {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  background: var(--booth-lift);
+  color: var(--paper);
+  font-weight: 700;
+  font-size: 1.05em;
+  transition: background 300ms;
+}
+
+.chip[data-lit='true'] .chipRank {
+  background: var(--tone);
+  color: var(--tone-ink);
+}
+
+.chipBody {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.25em 0.7em;
+}
+
+.chipNote {
+  font-size: 0.85em;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipBadge {
+  margin-right: 0.55em;
+  padding: 0.05em 0.5em;
+  border-radius: 99em;
+  background: var(--tone);
+  color: var(--tone-ink);
+  font-size: 0.8em;
+}
+
+.chipBadge:empty {
+  display: none;
+}
+
+.chipName {
+  font-size: 1.3em;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chipValue {
+  display: flex;
+  align-items: center;
+  padding: 0 0.8em 0 0.4em;
+  font-size: 1.3em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip[data-me='true'] {
+  box-shadow:
+    0 0 0 0.16em var(--butter),
+    0 0.25em 0.7em rgb(0 0 0 / 0.28);
+}
+
+/* --- Record -------------------------------------------------------------- */
+
+.record {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 0.9%, rgb(255 255 255 / 0.045) 0.9% 1.15%),
+    radial-gradient(circle, #2a2220 0 34%, var(--vinyl) 34.5% 100%);
+  box-shadow:
+    0 0 0 0.12em #000,
+    0 1.4em 3em rgb(0 0 0 / 0.5);
+}
+
+/* The sheen stays put while the disc turns under it. */
+.record::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 20deg,
+    transparent 0 8%,
+    rgb(255 255 255 / 0.13) 14%,
+    transparent 21% 50%,
+    rgb(255 255 255 / 0.09) 64%,
+    transparent 71%
+  );
+  pointer-events: none;
+}
+
+.recordDisc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* 33⅓ rpm: one turn every 1.8 seconds. */
+  animation: spin 1.8s linear infinite;
+  animation-play-state: paused;
+}
+
+.record[data-spinning='true'] .recordDisc {
+  animation-play-state: running;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.recordLabel {
+  position: absolute;
+  inset: 31%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tone);
+  color: var(--tone-ink);
+  overflow: hidden;
+  font-family: var(--font-display), cursive;
+  transition: background 400ms;
+}
+
+.recordLabel::before {
+  content: '';
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 0.06em dashed color-mix(in srgb, var(--tone-ink) 45%, transparent);
+}
+
+.recordLabel img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recordHole {
+  position: absolute;
+  inset: 47.6%;
+  border-radius: 50%;
+  background: var(--booth-deep);
+  box-shadow: 0 0 0 0.1em rgb(0 0 0 / 0.5);
+}

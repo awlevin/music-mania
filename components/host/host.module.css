@@ -1,0 +1,707 @@
+/* The TV. Everything is sized in em against one viewport-derived font-size,
+ * so the screen is the same picture on a laptop and on a 4K television.
+ * 1em is 1/80 of the width of a 16:9 screen. */
+
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100dvh;
+  padding: 1.5em 2.4em 1.8em;
+  overflow: hidden;
+  font-size: min(1.25vw, 2.2222vh);
+  background:
+    radial-gradient(ellipse 70% 60% at 38% 55%, var(--booth-lift), transparent 70%),
+    var(--booth-deep);
+}
+
+.stageBody {
+  min-height: 0;
+  display: grid;
+}
+
+/* --- Header -------------------------------------------------------------- */
+
+.header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 4.4em;
+}
+
+.headerMark {
+  font-size: 1.9em;
+  justify-self: start;
+}
+
+.pips {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pips li {
+  width: 1.5em;
+  height: 0.5em;
+  border-radius: 99em;
+  background: var(--tone);
+  transition:
+    width 400ms var(--ease-spring),
+    opacity 300ms;
+}
+
+.pips li[data-state='next'] {
+  opacity: 0.28;
+}
+
+.pips li[data-state='done'] {
+  opacity: 0.7;
+}
+
+.pips li[data-state='now'] {
+  width: 3.4em;
+  height: 0.7em;
+}
+
+.joinTag {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.4em 0.9em 0.4em 0.4em;
+  border-radius: var(--radius-strip);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.joinTagQr {
+  width: 3.1em;
+  height: 3.1em;
+}
+
+.joinTagQr svg,
+.ticketQr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.joinTag span {
+  display: block;
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.joinTag strong {
+  font-size: 1.7em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+/* --- Shared panels ------------------------------------------------------- */
+
+.panelTitle {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.05em;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.board {
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9em;
+  min-height: 0;
+  padding-top: 0.6em;
+}
+
+.boardList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  font-size: 0.95em;
+}
+
+.boardFoot {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- Lobby --------------------------------------------------------------- */
+
+.lobby {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4em;
+  align-items: center;
+  padding: 0 3em;
+}
+
+.lobbyTitle {
+  font-family: var(--font-display), cursive;
+  font-size: 5.2em;
+  font-weight: 400;
+  line-height: 1;
+  margin-bottom: 0.35em;
+}
+
+.ticket {
+  display: flex;
+  align-items: center;
+  gap: 1.8em;
+  width: fit-content;
+  padding: 1.5em;
+  border-radius: 1em;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow:
+    0 0.25em 0 var(--paper-shade),
+    0 1.5em 3em rgb(0 0 0 / 0.4);
+  transform: rotate(-1.5deg);
+}
+
+.ticketQr {
+  width: 14em;
+  height: 14em;
+}
+
+.ticketText {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+.ticketText span {
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--ink-soft);
+}
+
+.ticketUrl {
+  margin-bottom: 0.6em;
+  font-size: 1.5em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.ticketCode {
+  font-size: 5em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--cherry);
+}
+
+.lobbyHint {
+  max-width: 26em;
+  margin-top: 1.8em;
+  font-size: 1.1em;
+  color: var(--chrome);
+}
+
+.lobbyRoom {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2em;
+  align-self: stretch;
+  justify-content: center;
+}
+
+.lobbyPlayers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6em;
+  align-content: start;
+  min-height: 19em;
+}
+
+.lobbyEmpty {
+  grid-column: 1 / -1;
+  padding: 2.4em 1em;
+  border: 0.12em dashed var(--booth-line);
+  border-radius: var(--radius-strip);
+  text-align: center;
+  font-size: 1.1em;
+  color: var(--chrome);
+}
+
+.removeButton {
+  display: grid;
+  place-items: center;
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 1em;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.removeButton:hover {
+  background: var(--paper-shade);
+  color: var(--ink);
+}
+
+.lobbyStart {
+  display: flex;
+  align-items: center;
+  gap: 1.4em;
+}
+
+.lobbyStart p {
+  font-size: 1.05em;
+  color: var(--chrome);
+}
+
+/* --- Game ---------------------------------------------------------------- */
+
+.game {
+  display: grid;
+  grid-template-columns: 1fr 24em;
+  grid-template-rows: 1fr 1.2em;
+  gap: 0.6em 3em;
+  min-height: 0;
+}
+
+.deck {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  min-height: 0;
+}
+
+.prompt {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1em;
+  width: 100%;
+  min-height: 4em;
+}
+
+.prompt h1 {
+  font-family: var(--font-display), cursive;
+  font-size: 3em;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.prompt em {
+  font-style: normal;
+  color: var(--tone);
+}
+
+.countdown {
+  min-width: 1.3em;
+  font-family: var(--font-strip), sans-serif;
+  font-size: 3.4em;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--paper);
+}
+
+.countdown[data-urgent='true'] {
+  color: var(--cherry);
+  animation: pulse 1s var(--ease-out) infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.turntableArea {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.turntable {
+  position: relative;
+  width: 17.5em;
+  height: 17.5em;
+  transition: transform 700ms var(--ease-out);
+}
+
+.turntableArea[data-revealed='true'] .turntable {
+  transform: translateX(7.4em);
+}
+
+.record {
+  position: absolute;
+  inset: 0;
+}
+
+.labelMark {
+  font-size: 4.2em;
+  line-height: 1;
+}
+
+.halo {
+  position: absolute;
+  inset: -19%;
+}
+
+.halo canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.ring {
+  position: absolute;
+  inset: -4.5%;
+  width: 109%;
+  height: 109%;
+  transform: rotate(-90deg);
+}
+
+.ringTrack,
+.ringFill {
+  fill: none;
+  stroke-width: 1.4;
+}
+
+.ringTrack {
+  stroke: rgb(255 255 255 / 0.08);
+}
+
+.ringFill {
+  stroke: var(--tone);
+  stroke-linecap: round;
+}
+
+/* Tonearm: pivots at the top right, swings onto the record when the song starts. */
+.tonearm {
+  position: absolute;
+  top: -6%;
+  right: -13%;
+  width: 3.2em;
+  height: 3.2em;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e8eef0 0 22%, #8fa3a7 24% 48%, #4f6266 50% 100%);
+  box-shadow: 0 0.4em 1em rgb(0 0 0 / 0.5);
+  transform: rotate(-24deg);
+  transition: transform 1100ms var(--ease-out);
+  z-index: 2;
+}
+
+.tonearm[data-down='true'] {
+  transform: rotate(9deg);
+}
+
+.tonearm i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.55em;
+  height: 11.6em;
+  margin-left: -0.275em;
+  border-radius: 0.3em;
+  background: linear-gradient(90deg, #dfe8ea, #8fa3a7);
+  box-shadow: 0.2em 0.5em 0.8em rgb(0 0 0 / 0.4);
+  transform-origin: 50% 0;
+  transform: rotate(18deg);
+}
+
+.tonearm i::after {
+  content: '';
+  position: absolute;
+  bottom: -0.2em;
+  left: 50%;
+  width: 1.5em;
+  height: 2.4em;
+  margin-left: -0.75em;
+  border-radius: 0.25em;
+  background: var(--paper);
+  box-shadow: inset 0 -0.6em 0 var(--cherry);
+  transform: rotate(14deg);
+}
+
+/* Sleeve: hidden behind the turntable until the reveal pulls the record out of it. */
+.sleeve {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 17.5em;
+  height: 17.5em;
+  margin: -8.75em 0 0 -8.75em;
+  border-radius: 0.3em;
+  background: var(--booth-lift);
+  box-shadow: 0 1.4em 3em rgb(0 0 0 / 0.5);
+  opacity: 0;
+  transform: translateX(0) scale(0.9);
+  transition:
+    transform 700ms var(--ease-out),
+    opacity 250ms;
+  z-index: 1;
+}
+
+.turntableArea[data-revealed='true'] .sleeve {
+  opacity: 1;
+  transform: translateX(-5.7em) rotate(-2deg);
+}
+
+.sleeve img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.yearSticker {
+  position: absolute;
+  top: -1.1em;
+  left: -1.4em;
+  display: grid;
+  place-items: center;
+  width: 3.4em;
+  height: 3.4em;
+  background: var(--seafoam);
+  color: var(--ink);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.7em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  /* A 16-point price-sticker burst. */
+  clip-path: polygon(
+    50% 0%, 59% 9%, 69% 4%, 74% 15%, 85% 15%, 85% 26%, 96% 31%, 91% 41%, 100% 50%, 91% 59%,
+    96% 69%, 85% 74%, 85% 85%, 74% 85%, 69% 96%, 59% 91%, 50% 100%, 41% 91%, 31% 96%, 26% 85%,
+    15% 85%, 15% 74%, 4% 69%, 9% 59%, 0% 50%, 9% 41%, 4% 31%, 15% 26%, 15% 15%, 26% 15%, 31% 4%,
+    41% 9%
+  );
+  animation: stamp 480ms var(--ease-spring) 1100ms both;
+}
+
+.yearSticker[data-asked='true'] {
+  font-size: 2.2em;
+}
+
+@keyframes stamp {
+  from {
+    opacity: 0;
+    transform: scale(2.4) rotate(30deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-12deg);
+  }
+}
+
+.stripRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6em;
+  width: 100%;
+  min-height: 9.4em;
+}
+
+.strip {
+  width: 31em;
+}
+
+.albumTag {
+  display: flex;
+  flex-direction: column;
+  max-width: 16em;
+  padding: 0.7em 1.1em;
+  border-left: 0.3em solid var(--bubblegum);
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  line-height: 1.1;
+  animation: slideIn 500ms var(--ease-out) 800ms both;
+}
+
+.albumTag span {
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--chrome);
+}
+
+.albumTag strong {
+  font-size: 1.6em;
+  font-weight: 700;
+  text-wrap: balance;
+}
+
+.albumTag[data-asked='true'] strong {
+  color: var(--bubblegum);
+  font-size: 2em;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5em);
+  }
+}
+
+.revealBar {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  font-family: var(--font-strip), sans-serif;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--chrome);
+  white-space: nowrap;
+}
+
+.revealBar div {
+  flex: 1;
+  height: 0.35em;
+  border-radius: 99em;
+  background: rgb(255 255 255 / 0.08);
+  overflow: hidden;
+}
+
+.revealBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transform-origin: 0 50%;
+}
+
+/* --- Finished ------------------------------------------------------------ */
+
+.finished {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 24em;
+  gap: 3em;
+  align-items: center;
+}
+
+.winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.8em;
+}
+
+.winner h1 {
+  font-family: var(--font-display), cursive;
+  font-size: 4.4em;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--butter);
+}
+
+.winnerStrip {
+  width: 26em;
+  font-size: 1.5em;
+  transform: rotate(-1.5deg);
+}
+
+/* --- Overlays ------------------------------------------------------------ */
+
+.soundGate {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8em;
+  background: rgb(8 34 42 / 0.92);
+  text-align: center;
+}
+
+.soundGate h2 {
+  font-family: var(--font-display), cursive;
+  font-size: 3.4em;
+  font-weight: 400;
+}
+
+.soundGate p {
+  margin-bottom: 1em;
+  font-size: 1.2em;
+  color: var(--chrome);
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 1.2em;
+  transform: translateX(-50%);
+  padding: 0.5em 1.2em;
+  border-radius: 99em;
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.notice {
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  text-align: center;
+}
+
+.noticeMark {
+  margin-bottom: 0.6em;
+  font-size: 3em;
+}
+
+.notice h1 {
+  font-family: var(--font-display), cursive;
+  font-size: 2.6em;
+  font-weight: 400;
+}
+
+.notice p {
+  font-size: 1.2em;
+  color: var(--chrome);
+}
+
+.noticeLink {
+  margin-top: 0.8em;
+  padding: 0.7em 1.6em;
+  border-radius: var(--radius-key);
+  background: var(--cherry);
+  color: var(--paper);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.25em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow: var(--shadow-key);
+}

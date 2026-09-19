@@ -1,0 +1,101 @@
+.page {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  align-items: center;
+  padding: clamp(1.5rem, 5vw, 5rem);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 70% at 85% 50%, var(--booth-lift), transparent 70%),
+    var(--booth-deep);
+}
+
+.record {
+  position: absolute;
+  top: 50%;
+  right: max(-22vw, -320px);
+  width: min(62vw, 880px);
+  transform: translateY(-50%);
+  font-size: clamp(1rem, 2.4vw, 2.2rem);
+  --tone: var(--cherry);
+}
+
+.record > div > div {
+  /* An idle jukebox turns slowly. */
+  animation-duration: 6s;
+}
+
+.recordMark {
+  font-size: 4.5em;
+  line-height: 1;
+  color: var(--paper);
+}
+
+.content {
+  position: relative;
+  max-width: 34rem;
+}
+
+.mark {
+  font-size: clamp(4rem, 11vw, 8.5rem);
+  margin-bottom: 0.32em;
+}
+
+.pitch {
+  max-width: 24em;
+  margin-bottom: 2.4rem;
+  font-size: clamp(1.1rem, 1.6vw, 1.4rem);
+  color: var(--chrome);
+  text-wrap: balance;
+}
+
+.actions {
+  display: grid;
+  gap: 1.75rem;
+  max-width: 26rem;
+}
+
+.action h2 {
+  margin-bottom: 0.6rem;
+  font-family: var(--font-strip), sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.action p {
+  margin-top: 0.7rem;
+  font-size: 0.95rem;
+  color: var(--chrome);
+}
+
+.action p[data-error='true'] {
+  color: var(--bubblegum);
+}
+
+.joinRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.joinRow input {
+  letter-spacing: 0.2em;
+}
+
+@media (max-width: 720px) {
+  .page {
+    align-items: end;
+    padding-top: 46vw;
+  }
+
+  .record {
+    top: -34vw;
+    right: -18vw;
+    width: 100vw;
+    transform: none;
+  }
+}

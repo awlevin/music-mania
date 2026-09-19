@@ -5,7 +5,7 @@ export const GUESS_MS = 15_000;
 /** How long the reveal lasts before the next song starts on its own. */
 export const REVEAL_MS = 15_000;
 /** Network slack: an answer stamped this far past the deadline still counts. */
-export const ANSWER_GRACE_MS = 400;
+export const ANSWER_GRACE_MS = 300;
 
 /** Easiest attribute first, hardest last. One entry per round. */
 export const ROUND_KINDS: readonly QuestionKind[] = [

@@ -1,26 +1,104 @@
-@import "tailwindcss";
+/* Music Mania design tokens.
+ *
+ * The room is a jukebox at night: a deep teal booth, and on it the paper
+ * title strips a jukebox files its records under. Each strip colour names one
+ * kind of question, the way a jukebox colours its strips by genre.
+ */
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --booth: #0e2f36;
+  --booth-deep: #08222a;
+  --booth-lift: #164550;
+  --booth-line: #23606d;
+  --chrome: #b9cdd0;
+
+  --paper: #fff3d6;
+  --paper-shade: #ebd9ae;
+  --ink: #241713;
+  --ink-soft: #6b564a;
+
+  --cherry: #e9383f;
+  --butter: #ffc845;
+  --seafoam: #6fd6bf;
+  --bubblegum: #ff9cbd;
+  --vinyl: #14100f;
+
+  /* The colour of the current question. Screens set it per round. */
+  --tone: var(--cherry);
+  --tone-ink: var(--paper);
+
+  --radius-strip: 0.5em;
+  --radius-key: 0.75em;
+  --shadow-key: 0 0.28em 0 rgb(0 0 0 / 0.38);
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-tone='title'] {
+  --tone: var(--cherry);
+  --tone-ink: var(--paper);
+}
+[data-tone='artist'] {
+  --tone: var(--butter);
+  --tone-ink: var(--ink);
+}
+[data-tone='year'] {
+  --tone: var(--seafoam);
+  --tone-ink: var(--ink);
+}
+[data-tone='album'] {
+  --tone: var(--bubblegum);
+  --tone-ink: var(--ink);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--booth);
+  color: var(--paper);
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--butter);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

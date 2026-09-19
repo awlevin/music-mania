@@ -1,0 +1,203 @@
+/* The phone. Silent by design: no audio element exists on this screen. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse 120% 50% at 50% 0%, var(--booth-lift), transparent 70%);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.25rem;
+}
+
+.topMark {
+  font-size: 1.35rem;
+}
+
+.topCode,
+.eyebrow {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.me {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-strip);
+  background: var(--booth-lift);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.me strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--butter);
+}
+
+.centre {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem 0;
+}
+
+.centre[data-align='top'] {
+  justify-content: flex-start;
+  padding-top: 2.5rem;
+}
+
+.centre[data-align='middle'] {
+  text-align: center;
+}
+
+.headline {
+  font-family: var(--font-display), cursive;
+  font-size: clamp(2.2rem, 10vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.headline em {
+  font-style: normal;
+  color: var(--tone);
+}
+
+.sub {
+  font-size: 1.1rem;
+  color: var(--chrome);
+  text-wrap: pretty;
+}
+
+.small {
+  font-size: 0.95rem;
+  text-align: center;
+  color: var(--chrome);
+}
+
+.error {
+  min-height: 1.4em;
+  font-size: 0.95rem;
+  color: var(--bubblegum);
+}
+
+.link {
+  color: var(--butter);
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+}
+
+.timeBar {
+  height: 0.5rem;
+  border-radius: 99em;
+  background: rgb(255 255 255 / 0.1);
+  overflow: hidden;
+}
+
+.timeBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tone);
+  transform-origin: 0 50%;
+}
+
+.answerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.receipt {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.verdict strong {
+  font-size: 5.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--chrome);
+  animation: land 450ms var(--ease-spring) both;
+}
+
+.verdict[data-won='true'] strong {
+  color: var(--tone);
+}
+
+.verdict span {
+  font-size: 1.3rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+@keyframes land {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.answerCard {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.62rem;
+}
+
+.art {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 0.3rem;
+  box-shadow: 0 0.5rem 1.2rem rgb(0 0 0 / 0.4);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 0.4rem 1rem;
+  border-radius: 99em;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
