@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import {
+  DecadeIcon,
   GearIcon,
   IconButton,
   Key,
@@ -476,6 +477,7 @@ function GameSetup({ view, token }: { view: RoomView; token: string }) {
                       aria-pressed={setup.decades.includes(decade)}
                       onClick={() => void apply(pickDecade(setup, decade))}
                     >
+                      <DecadeIcon decade={decade} className={styles.decadeIcon} />
                       {decadeName(decade)}
                     </button>
                   ))}

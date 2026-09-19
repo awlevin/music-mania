@@ -8,6 +8,8 @@ import type { QuestionKind } from '@/lib/game/types';
 
 import styles from './ds.module.css';
 
+export { DecadeIcon } from './DecadeIcon';
+
 export type Tone = QuestionKind;
 
 // ---------------------------------------------------------------------------

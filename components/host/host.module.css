@@ -471,7 +471,10 @@
 }
 
 .decadeChips button {
-  padding: 0.35em 0.85em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.35em 0.85em 0.35em 0.7em;
   border: 0;
   border-radius: 99em;
   background: transparent;
@@ -490,6 +493,11 @@
 
 .decadeChips button:hover {
   color: var(--paper);
+}
+
+.decadeIcon {
+  flex: none;
+  font-size: 1.25em;
 }
 
 .decadeChips button[aria-pressed='true'] {
