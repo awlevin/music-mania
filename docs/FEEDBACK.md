@@ -47,9 +47,19 @@ For each open item, oldest first:
    open as a wish.
 4. **Prove it.** `npm run typecheck && npm run lint && npm test` must pass. For
    anything a player would see, run the app and `npm run e2e`.
-5. **Ship it.** Commit to `main` with the item ids in the message
-   (`Fix album for Mr. Brightside (FB-12)`) and push. Vercel deploys `main`.
-6. **Close it**, quoting the commit:
+5. **Ship it.** Put the item ids in the commit subject:
+   `Fix album for Mr. Brightside (FB-12)`.
+   - A person working by hand may push to `main`. Vercel deploys `main`.
+   - The scheduled agent never pushes to `main`. It pushes a branch named
+     `feedback/fb-12` (one per item, or per tight group: `feedback/fb-12-fb-15`)
+     and opens a pull request whose title is the commit subject. It skips any
+     item that already has a `feedback/fb-<n>` branch on the remote
+     (`git ls-remote --heads origin 'feedback/*'`): that one is waiting for
+     review.
+6. **Close it**, quoting the commit. The scheduled agent closes an item only
+   once its fix is on `main`: at the start of each run it looks for open items
+   whose id appears in `git log origin/main` and closes those with that commit.
+   Declined items need no code, so it closes them straight away.
 
 ```sh
 node scripts/feedback.mjs close FB-12 --fixed "Moved it to the album Hot Fuss." --commit <sha>
