@@ -135,7 +135,8 @@ for (let round = 0; round < ROUNDS; round++) {
     await phones[2].page.screenshot({ path: `${SHOTS}12-phone-reveal-${round + 1}-noanswer.png` });
   }
 
-  if (round === 1) {
+  // Local only: a report on production would bench a real song for real players.
+  if (round === 1 && /localhost|127\.0\.0\.1/.test(BASE)) {
     // Chidi thinks the album is wrong, and says so from his phone.
     const chidi = phones[2].page;
     await chidi.getByRole('button', { name: /Something off with this song/ }).click();
