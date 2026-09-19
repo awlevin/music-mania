@@ -278,6 +278,7 @@
 /* --- Game ---------------------------------------------------------------- */
 
 .game {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 24em;
   grid-template-rows: 1fr 1.2em;
@@ -628,6 +629,101 @@
   width: 26em;
   font-size: 1.5em;
   transform: rotate(-1.5deg);
+}
+
+/* --- Give-up flag -------------------------------------------------------- */
+
+.flag {
+  position: absolute;
+  top: 9em;
+  left: calc(14em + var(--slot, 0) * 9em);
+  z-index: 4;
+  width: 27em;
+  transform-origin: 50% -6em;
+  animation: flag 4.2s var(--ease-out) both;
+  pointer-events: none;
+}
+
+/* Drops on a string, swings to a stop, sulks, then lets go. */
+@keyframes flag {
+  0% {
+    opacity: 0;
+    transform: translateY(-24em) rotate(-14deg);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) rotate(9deg);
+  }
+  22% {
+    transform: translateY(0) rotate(-6deg);
+  }
+  32% {
+    transform: translateY(0) rotate(3deg);
+  }
+  42%,
+  76% {
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(44em) rotate(38deg);
+  }
+}
+
+/* --- Chapter card -------------------------------------------------------- */
+
+.chapter {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.2em;
+  background: var(--tone);
+  color: var(--tone-ink);
+  text-align: center;
+}
+
+.chapterEyebrow {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.6em;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.chapterTitle {
+  font-family: var(--font-display), cursive;
+  font-size: 8.5em;
+  font-weight: 400;
+  line-height: 0.95;
+}
+
+.chapterTitle em {
+  display: block;
+  font-style: normal;
+  font-size: 1.5em;
+  /* The word itself, stamped in the booth's dark ink. */
+  color: var(--booth-deep);
+}
+
+.chapterHint {
+  max-width: 28em;
+  margin-top: 0.6em;
+  font-size: 1.7em;
+  font-weight: 500;
+}
+
+.soundNote {
+  padding: 0.7em 1em;
+  border-radius: var(--radius-strip);
+  background: var(--butter);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 /* --- Overlays ------------------------------------------------------------ */

@@ -4,11 +4,22 @@
 // touches nothing else.
 
 import catalog from '@/data/catalog.json';
+import finales from '@/data/finales.json';
 import type { Song } from '@/lib/game/types';
 
 import { refreshPreviews } from './itunes';
 
 const SONGS = catalog as Song[];
+/** Party songs for the final scores: "Celebration" and friends. One plays per game. */
+const FINALES = finales as Song[];
+
+/** "Queen & David Bowie" and "Queen" are the same act as far as variety goes. */
+function primaryArtist(artist: string): string {
+  return artist
+    .split(/\s*(?:,|&|\bfeat\.?|\bft\.?|\bfeaturing\b|\bwith\b)\s*/i)[0]
+    .trim()
+    .toLowerCase();
+}
 
 function shuffle<T>(items: readonly T[], random: () => number): T[] {
   const out = items.slice();
@@ -44,19 +55,40 @@ export function chooseSongs(
   const leftovers: Song[] = [];
   for (const song of [...fresh, ...heard]) {
     if (picked.length === count) break;
-    if (artists.has(song.artist)) {
+    const artist = primaryArtist(song.artist);
+    if (artists.has(artist)) {
       leftovers.push(song);
       continue;
     }
-    artists.add(song.artist);
+    artists.add(artist);
     picked.push(song);
   }
   return [...picked, ...leftovers].slice(0, count);
 }
 
-/** Songs for one game, with preview URLs fetched fresh from iTunes. */
-export async function pickSongs(count: number, excludeIds: readonly number[]): Promise<Song[]> {
-  return refreshPreviews(chooseSongs(count, excludeIds));
+/** Songs for one game and the finale, with preview URLs fetched fresh from iTunes. */
+export async function pickSongs(
+  count: number,
+  excludeIds: readonly number[],
+  lastFinaleId?: number,
+): Promise<{ songs: Song[]; finale: Song | null }> {
+  const chosen = chooseSongs(count, excludeIds);
+  const finale = chooseFinale(chosen, lastFinaleId);
+  const fresh = await refreshPreviews(finale ? [...chosen, finale] : chosen);
+  return { songs: fresh.slice(0, chosen.length), finale: finale ? fresh[fresh.length - 1] : null };
+}
+
+/** A finale this game did not ask about and the last game did not end on. */
+export function chooseFinale(
+  questions: readonly Song[],
+  lastFinaleId?: number,
+  random: () => number = Math.random,
+): Song | null {
+  const asked = new Set(questions.map((s) => s.id));
+  const unasked = FINALES.filter((s) => !asked.has(s.id));
+  const fresh = unasked.filter((s) => s.id !== lastFinaleId);
+  const pool = fresh.length ? fresh : unasked;
+  return pool.length ? pool[Math.floor(random() * pool.length)] : null;
 }
 
 export function catalogSize(): number {

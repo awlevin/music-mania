@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chooseSongs } from '@/lib/catalog';
+import { chooseFinale, chooseSongs } from '@/lib/catalog';
 
 import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUNDS_PER_GAME } from './config';
 import { matchesArtist, matchesText, parseYear } from './match';
@@ -127,6 +127,17 @@ describe('room', () => {
     expect(state.players[1].score).toBe(0);
   });
 
+  it('counts giving up as done, publicly, for no points', () => {
+    let state = guessing(['Ana', 'Ben']);
+    state = run(state, { type: 'give-up', playerId: 'p1' }, 4000);
+    const host = viewFor(state, { role: 'host' }, 4000);
+    expect(host.players[1]).toMatchObject({ answered: true, gaveUp: true });
+    expect(reduce(state, { type: 'answer', playerId: 'p1', text: 'song 1' }, 4500).ok).toBe(false);
+    state = run(state, { type: 'answer', playerId: 'p0', text: 'song 1' }, 5000);
+    expect(state.phase).toBe('reveal');
+    expect(state.players[1].score).toBe(0);
+  });
+
   it('takes one answer per player', () => {
     let state = guessing(['Ana', 'Ben']);
     state = run(state, { type: 'answer', playerId: 'p0', text: 'nope' }, 2000);
@@ -213,7 +224,7 @@ describe('views', () => {
     expect(JSON.stringify(player)).not.toContain('t0');
     expect(JSON.stringify(host)).not.toContain('Song 1');
     expect(host.round?.previewUrl).toBe('https://audio/1.m4a');
-    expect(player.you?.answer).toEqual({ text: 'song 1', elapsedMs: 1000 });
+    expect(player.you?.answer).toEqual({ text: 'song 1', elapsedMs: 1000, gaveUp: false });
     expect(player.players.map((p) => p.answered)).toEqual([true, false]);
 
     state = run(state, { type: 'answer', playerId: 'p1', text: 'x' }, 3000);
@@ -234,6 +245,21 @@ describe('catalog', () => {
     expect(picked).toHaveLength(10);
     expect(new Set(picked.map((s) => s.artist)).size).toBe(10);
     expect(picked.some((s) => [1, 2, 3].includes(s.id))).toBe(false);
+  });
+
+  it('treats a duet as the lead artist for variety', () => {
+    const songs = [song(1, { artist: 'Queen' }), song(2, { artist: 'Queen & David Bowie' }), song(3)];
+    const picked = chooseSongs(2, [], Math.random, songs);
+    expect(picked.map((s) => s.artist).filter((a) => a.startsWith('Queen'))).toHaveLength(1);
+  });
+
+  it('ends on a party song the game did not ask about, and not the same one twice', () => {
+    const first = chooseFinale([])!;
+    expect(first).not.toBeNull();
+    for (let i = 0; i < 20; i++) {
+      const next = chooseFinale([first], first.id)!;
+      expect(next.id).not.toBe(first.id);
+    }
   });
 
   it('falls back to repeats rather than coming up short', () => {

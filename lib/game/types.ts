@@ -35,6 +35,8 @@ export interface Answer {
   correct: boolean;
   /** Year rounds only: how many years off the guess was. */
   yearsOff?: number;
+  /** The player tapped out instead of answering. */
+  gaveUp?: boolean;
   points: number;
 }
 
@@ -57,6 +59,8 @@ export interface RoomState {
   roundIndex: number;
   /** Swapped in when a preview refuses to play. */
   spares: Song[];
+  /** What the host plays over the final scores. */
+  finale: Song | null;
   /** Every song this room has heard, so "play again" never repeats one. */
   playedSongIds: number[];
   createdAt: number;
@@ -66,10 +70,11 @@ export type Action =
   | { type: 'join'; playerId: string; token: string; name: string }
   | { type: 'rename'; playerId: string; name: string }
   | { type: 'remove-player'; playerId: string }
-  | { type: 'start'; songs: Song[]; spares: Song[] }
+  | { type: 'start'; songs: Song[]; spares: Song[]; finale?: Song | null }
   | { type: 'audio-started'; roundIndex: number }
   | { type: 'audio-failed'; roundIndex: number }
   | { type: 'answer'; playerId: string; text: string }
+  | { type: 'give-up'; playerId: string }
   | { type: 'next'; roundIndex: number }
   | { type: 'tick' };
 
@@ -82,8 +87,10 @@ export interface PlayerView {
   id: string;
   name: string;
   score: number;
-  /** True once this player has locked in an answer for the current round. */
+  /** True once this player has locked in an answer for the current round, or given up. */
   answered: boolean;
+  /** Giving up is public the moment it happens: the TV makes a scene of it. */
+  gaveUp: boolean;
 }
 
 export interface RevealedAnswer extends Answer {
@@ -94,6 +101,8 @@ export interface RoundView {
   index: number;
   total: number;
   kind: QuestionKind;
+  /** True on the first round of each kind: the screens announce the new question. */
+  kindChanged: boolean;
   guessStartedAt: number | null;
   revealStartedAt: number | null;
   /** Host only: what to play. A preview URL does not name the song. */
@@ -111,11 +120,15 @@ export interface RoomView {
   phase: Phase;
   players: PlayerView[];
   round: RoundView | null;
+  /** Host only, from the last reveal on: the song for the final scores. */
+  finaleUrl?: string;
   /** Players only. */
   you?: {
     id: string;
+    /** The first player in the room runs it from their phone: start, play again. */
+    leader: boolean;
     /** What this player locked in. Whether it was right waits for the reveal. */
-    answer: { text: string; elapsedMs: number } | null;
+    answer: { text: string; elapsedMs: number; gaveUp: boolean } | null;
   };
   /** Server clock when this view was built; screens derive their offset from it. */
   serverNow: number;

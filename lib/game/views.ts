@@ -14,6 +14,7 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
       index: state.roundIndex,
       total: state.rounds.length,
       kind: round.kind,
+      kindChanged: state.rounds[state.roundIndex - 1]?.kind !== round.kind,
       guessStartedAt: round.guessStartedAt,
       revealStartedAt: round.revealStartedAt,
     };
@@ -39,16 +40,25 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
       name: p.name,
       score: p.score,
       answered: inRound && Boolean(round.answers[p.id]),
+      gaveUp: inRound && Boolean(round.answers[p.id]?.gaveUp),
     })),
     round: roundView,
     serverNow: now,
   };
 
+  const lastRound = state.roundIndex === state.rounds.length - 1;
+  if (viewer.role === 'host' && revealed && lastRound && state.finale) {
+    view.finaleUrl = state.finale.previewUrl;
+  }
+
   if (viewer.role === 'player') {
     const mine = inRound ? round.answers[viewer.playerId] : undefined;
     view.you = {
       id: viewer.playerId,
-      answer: mine ? { text: mine.text, elapsedMs: mine.elapsedMs } : null,
+      leader: state.players[0]?.id === viewer.playerId,
+      answer: mine
+        ? { text: mine.text, elapsedMs: mine.elapsedMs, gaveUp: Boolean(mine.gaveUp) }
+        : null,
     };
   }
   return view;

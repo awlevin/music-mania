@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { send } from '@/lib/client/api';
-import { Jukebox } from '@/lib/client/jukebox';
+import { getJukebox, type Jukebox } from '@/lib/client/jukebox';
 import type { RoomView } from '@/lib/game/types';
 
 /** Time on the "get ready" card before the needle drops, so the room can read the question. */
-export const INTRO_MS = 3200;
+const INTRO_MS = 3200;
+/** Longer when the question changes kind: the announcement needs reading. */
+const ANNOUNCE_MS = 6000;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -38,9 +40,9 @@ export function useDirector(
   view: RoomView | null,
   clockOffset: number,
 ): Director {
-  const [jukebox] = useState(() => (typeof window === 'undefined' ? null : new Jukebox()));
+  const [jukebox] = useState(() => (typeof window === 'undefined' ? null : getJukebox()));
   /** Whether the browser currently lets this page make sound. */
-  const [unlocked, setUnlocked] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => jukebox?.unlocked ?? false);
   /** The round + URL the jukebox was last pointed at, so each is cued once. */
   const cued = useRef('');
 
@@ -57,15 +59,35 @@ export function useDirector(
   const previewUrl = view?.round?.previewUrl;
   const nextPreviewUrl = view?.round?.nextPreviewUrl;
   const guessStartedAt = view?.round?.guessStartedAt ?? null;
+  const finaleUrl = view?.finaleUrl;
+  const introMs = view?.round?.kindChanged ? ANNOUNCE_MS : INTRO_MS;
 
   useEffect(() => {
     if (!jukebox || !token || phase === undefined || !unlocked) return;
 
-    if (phase === 'lobby' || phase === 'finished') {
+    if (phase === 'lobby') {
       cued.current = '';
       void jukebox.fadeOut();
       return;
     }
+    if (phase === 'finished') {
+      // The party song, looping under the final scores.
+      const key = `finale:${finaleUrl ?? ''}`;
+      if (cued.current === key) return;
+      cued.current = key;
+      void (async () => {
+        await jukebox.fadeOut();
+        if (!finaleUrl || cued.current !== key) return;
+        try {
+          await jukebox.load(finaleUrl);
+          if (cued.current === key) await jukebox.play(0, true);
+        } catch {
+          // No finale is a quieter ending, not a broken one.
+        }
+      })();
+      return;
+    }
+    if (finaleUrl) jukebox.prefetch(finaleUrl);
     if (roundIndex === undefined || !previewUrl) return;
     if (nextPreviewUrl && phase !== 'loading') jukebox.prefetch(nextPreviewUrl);
 
@@ -80,7 +102,7 @@ export function useDirector(
     (async () => {
       try {
         if (phase === 'loading') {
-          await Promise.all([jukebox.fadeOut().then(() => jukebox.load(previewUrl)), wait(INTRO_MS)]);
+          await Promise.all([jukebox.fadeOut().then(() => jukebox.load(previewUrl)), wait(introMs)]);
           if (!stillCurrent()) return;
           await jukebox.play();
           if (!stillCurrent()) return;
@@ -102,10 +124,9 @@ export function useDirector(
         }
       }
     })();
-    // guessStartedAt and clockOffset only matter on the reload path, read once.
+    // guessStartedAt, clockOffset and introMs are read once, when the round is cued.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jukebox, token, code, phase, roundIndex, previewUrl, nextPreviewUrl, unlocked]);
+  }, [jukebox, token, code, phase, roundIndex, previewUrl, nextPreviewUrl, finaleUrl, unlocked]);
 
-  const inRound = phase === 'loading' || phase === 'guessing' || phase === 'reveal';
-  return { jukebox, needsClick: inRound && !unlocked, enableSound };
+  return { jukebox, needsClick: phase !== undefined && !unlocked, enableSound };
 }

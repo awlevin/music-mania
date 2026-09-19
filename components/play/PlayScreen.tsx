@@ -205,20 +205,51 @@ function Room({
         <GuessView key={view.round!.index} view={view} token={token} clockOffset={clockOffset} />
       )}
       {view.phase === 'reveal' && <RevealView view={view} token={token} clockOffset={clockOffset} />}
-      {view.phase === 'finished' && <FinishedView view={view} />}
+      {view.phase === 'finished' && <FinishedView view={view} token={token} />}
       {status === 'reconnecting' && <div className={styles.toast}>Reconnecting…</div>}
     </Shell>
   );
 }
 
+function StartKey({ view, token, label }: { view: RoomView; token: string; label: string }) {
+  const [error, setError] = useState('');
+  const [starting, setStarting] = useState(false);
+  return (
+    <>
+      <Key
+        block
+        disabled={starting}
+        onClick={async () => {
+          setStarting(true);
+          setError('');
+          const result = await send(view.code, token, { type: 'start' });
+          if (!result.ok) setError(result.error);
+          setStarting(false);
+        }}
+      >
+        {starting ? 'Picking songs…' : label}
+      </Key>
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
 function LobbyView({ view, token, onLeft }: { view: RoomView; token: string; onLeft: () => void }) {
   const me = view.players.find((p) => p.id === view.you!.id);
+  const leader = view.you!.leader;
   return (
     <section className={styles.centre}>
       <h1 className={styles.headline}>You are in, {me?.name}</h1>
       <p className={styles.sub}>
-        Watch the big screen. The music plays there, and this phone stays silent.
+        {leader
+          ? 'You were first in, so you run the game. Start it when everyone has joined.'
+          : `Watch the big screen. ${view.players[0]?.name ?? 'The host'} starts the game.`}
       </p>
+      {leader && <StartKey view={view} token={token} label="Start game" />}
       <div className={styles.list}>
         {view.players.map((p, i) => (
           <PlayerChip key={p.id} rank={i + 1} name={p.name} me={p.id === view.you!.id} />
@@ -252,6 +283,18 @@ function RoundHeading({ view, lead }: { view: RoomView; lead: string }) {
 }
 
 function LoadingView({ view }: { view: RoomView }) {
+  const round = view.round!;
+  if (round.kindChanged) {
+    return (
+      <section className={styles.announce}>
+        <p className={styles.announceEyebrow}>{round.index === 0 ? 'First up' : 'New question'}</p>
+        <h1 className={styles.announceTitle}>
+          Name the <em>{KINDS[round.kind].noun}</em>
+        </h1>
+        <p className={styles.announceHint}>{KINDS[round.kind].hint}</p>
+      </section>
+    );
+  }
   return (
     <section className={styles.centre} data-align="top">
       <RoundHeading view={view} lead="Get ready to name the" />
@@ -302,8 +345,8 @@ function GuessView({ view, token, clockOffset }: { view: RoomView; token: string
         <TitleStrip
           className={styles.receipt}
           tone={round.kind}
-          top={answer.text}
-          label={`Locked in at ${(answer.elapsedMs / 1000).toFixed(1)} s`}
+          top={answer.gaveUp ? 'You gave up' : answer.text}
+          label={`${answer.gaveUp ? 'Tapped out' : 'Locked in'} at ${(answer.elapsedMs / 1000).toFixed(1)} s`}
           bottom={waitingOn === 0 ? 'Everyone is in' : `Waiting for ${waitingOn} more`}
         />
       ) : (
@@ -338,6 +381,14 @@ function GuessView({ view, token, clockOffset }: { view: RoomView; token: string
           <p className={styles.error} role="alert">
             {error}
           </p>
+          <Key
+            variant="quiet"
+            className={styles.giveUp}
+            disabled={sending}
+            onClick={() => void send(view.code, token, { type: 'give-up' })}
+          >
+            Give up
+          </Key>
         </form>
       )}
     </section>
@@ -368,7 +419,8 @@ function RevealView({ view, token, clockOffset }: { view: RoomView; token: strin
 
   let verdict = 'No answer this time';
   if (mine) {
-    if (mine.correct) verdict = fastest?.playerId === mine.playerId ? 'Right, and first' : 'Right';
+    if (mine.gaveUp) verdict = 'You gave up';
+    else if (mine.correct) verdict = fastest?.playerId === mine.playerId ? 'Right, and first' : 'Right';
     else if (mine.points > 0) verdict = `${mine.yearsOff} ${mine.yearsOff === 1 ? 'year' : 'years'} off`;
     else verdict = 'Not this time';
   }
@@ -414,7 +466,7 @@ function RevealView({ view, token, clockOffset }: { view: RoomView; token: strin
   );
 }
 
-function FinishedView({ view }: { view: RoomView }) {
+function FinishedView({ view, token }: { view: RoomView; token: string }) {
   const ranked = rankPlayers(view.players);
   const mine = ranked.find((r) => r.player.id === view.you!.id);
   return (
@@ -443,7 +495,11 @@ function FinishedView({ view }: { view: RoomView }) {
           />
         ))}
       </div>
-      <p className={styles.small}>The host can start another game from the big screen.</p>
+      {view.you!.leader ? (
+        <StartKey view={view} token={token} label="Play again" />
+      ) : (
+        <p className={styles.small}>{view.players[0]?.name ?? 'The host'} can start another game.</p>
+      )}
     </section>
   );
 }

@@ -13,7 +13,9 @@ const SHOTS = new URL('./shots/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
 
 // The test knows what no player can: which song a preview URL belongs to.
-const catalog = JSON.parse(readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8'));
+const read = (file) => JSON.parse(readFileSync(new URL(`../data/${file}`, import.meta.url), 'utf8'));
+const finales = read('finales.json');
+const catalog = [...read('catalog.json'), ...finales];
 const KIND_FIELD = { song: 'title', artist: 'artist', year: 'year', album: 'album' };
 
 const browser = await chromium.launch({
@@ -28,12 +30,14 @@ const watch = (page, who) => {
 const hostCtx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
 const host = await hostCtx.newPage();
 watch(host, 'host');
-let nowPlaying = null;
+// Previews are fetched in play order (each round prefetches the next), so the
+// n-th distinct file the host asks for is round n's song.
+const requested = [];
 host.on('request', (r) => {
   if (!/\.(m4a|mp3)(\?|$)/.test(r.url())) return;
-  // The id in the path survives Apple re-signing the rest of the URL.
-  const id = r.url().split('/').pop();
-  nowPlaying = catalog.find((s) => s.previewUrl.split('/').pop() === id) ?? nowPlaying;
+  const file = r.url().split('/').pop();
+  const song = catalog.find((s) => s.previewUrl.split('/').pop() === file);
+  if (song && !requested.includes(song)) requested.push(song);
 });
 await host.goto(BASE);
 // Playwright hides carets by styling inputs; do that after hydration, not during it.
@@ -69,13 +73,18 @@ const silent = async () => {
   }
 };
 
-await host.getByRole('button', { name: 'Start game' }).click();
+// Ana was first in, so she runs the game from her phone.
+await phones[1].page.getByText('Ana starts the game').waitFor();
+await phones[0].page.getByRole('button', { name: 'Start game' }).click();
 
 for (let round = 0; round < ROUNDS; round++) {
   await host.getByText(/Get ready to name the/).waitFor();
-  if (round === 0) {
-    await host.screenshot({ path: `${SHOTS}05-host-ready.png` });
-    await phones[0].page.screenshot({ path: `${SHOTS}06-phone-ready.png` });
+  if (round === 0 || round === 3) {
+    // A new kind of question is announced across the whole screen.
+    await host.getByText(/Songs \d+ to \d+/).waitFor();
+    await host.waitForTimeout(900);
+    await host.screenshot({ path: `${SHOTS}05-host-chapter-${round + 1}.png` });
+    await phones[0].page.screenshot({ path: `${SHOTS}06-phone-chapter-${round + 1}.png` });
   }
   await phones[0].page.getByRole('button', { name: 'Lock it in' }).waitFor({ timeout: 20000 });
   await silent();
@@ -87,6 +96,7 @@ for (let round = 0; round < ROUNDS; round++) {
 
   const year = await phones[0].page.getByPlaceholder(/Year/).count();
   const noun = (await phones[0].page.locator('h1 em').textContent()).trim();
+  const nowPlaying = requested[round];
   const right = nowPlaying ? String(nowPlaying[KIND_FIELD[noun]]) : null;
   // Ana answers; Benedict answers on even rounds; Chidi never does, except
   // in round two, where everyone answers and the reveal must come early.
@@ -98,6 +108,13 @@ for (let round = 0; round < ROUNDS; round++) {
     if (right && year && name === 'Benedict') text = String(Number(right) + 1);
     await page.getByRole('textbox').fill(text);
     await page.getByRole('button', { name: 'Lock it in' }).click();
+  }
+  if (round === 2) {
+    await phones[2].page.getByRole('button', { name: 'Give up' }).click();
+    await host.getByText('Gave up').first().waitFor();
+    await host.waitForTimeout(1300);
+    await host.screenshot({ path: `${SHOTS}10-host-gave-up.png` });
+    await phones[2].page.screenshot({ path: `${SHOTS}10-phone-gave-up.png` });
   }
   if (round === 0) {
     await phones[0].page.getByText(/Locked in at/).waitFor();
@@ -137,7 +154,8 @@ await phones[2].page.screenshot({ path: `${SHOTS}14-phone-finished-last.png` });
 
 const anaScore = await phones[0].page.locator('[class*=me] strong').textContent();
 console.log('Ana finished on', anaScore);
-if (nowPlaying && Number(anaScore.replace(/,/g, '')) < 5000) problems.push(`Ana knew every song but scored ${anaScore}`);
+if (!finales.some((f) => requested.at(-1)?.id === f.id)) problems.push('the final screen did not play a finale song');
+if (Number(anaScore.replace(/,/g, '')) < 5000) problems.push(`Ana knew every song but scored ${anaScore}`);
 await browser.close();
 if (problems.length) {
   console.error('PROBLEMS:\n' + [...new Set(problems)].join('\n'));

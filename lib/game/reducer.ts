@@ -28,6 +28,7 @@ export function createRoom(code: string, hostToken: string, now: number): RoomSt
     rounds: [],
     roundIndex: 0,
     spares: [],
+    finale: null,
     playedSongIds: [],
     createdAt: now,
   };
@@ -160,6 +161,7 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
           roundIndex: 0,
           rounds: newRounds(action.songs),
           spares: action.spares,
+          finale: action.finale ?? null,
           players: state.players.map((p) => ({ ...p, score: 0 })),
           playedSongIds: [...state.playedSongIds, ...action.songs.map((s) => s.id)],
         },
@@ -209,6 +211,24 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
       const next = withRound(state, {
         ...round,
         answers: { ...round.answers, [action.playerId]: answer },
+      });
+      return { ok: true, state: allAnswered(next) ? startReveal(next, now) : next };
+    }
+
+    case 'give-up': {
+      const round = currentRound(state);
+      if (state.phase !== 'guessing' || !round || round.guessStartedAt === null) {
+        return { ok: true, state };
+      }
+      if (!state.players.some((p) => p.id === action.playerId)) return fail('You are not in this room.');
+      if (round.answers[action.playerId]) return fail('You already locked in an answer.');
+      const elapsedMs = Math.min(Math.max(now - round.guessStartedAt, 0), GUESS_MS);
+      const next = withRound(state, {
+        ...round,
+        answers: {
+          ...round.answers,
+          [action.playerId]: { text: '', elapsedMs, correct: false, gaveUp: true, points: 0 },
+        },
       });
       return { ok: true, state: allAnswered(next) ? startReveal(next, now) : next };
     }

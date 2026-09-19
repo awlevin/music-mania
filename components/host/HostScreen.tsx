@@ -13,13 +13,14 @@ import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, REVEAL_MS, ROUND_KINDS } from '@/lib/game/config';
 import { KINDS } from '@/lib/game/kinds';
 import { rankPlayers } from '@/lib/game/rank';
-import type { RevealedAnswer, RoomView } from '@/lib/game/types';
+import type { QuestionKind, RevealedAnswer, RoomView } from '@/lib/game/types';
 
 import { Confetti } from './Confetti';
 import { Halo } from './Halo';
 import styles from './host.module.css';
 import { QrCode } from './JoinCode';
 import { type Director, useDirector } from './useDirector';
+import { WhiteFlag } from './WhiteFlag';
 
 const noStore = () => () => {};
 
@@ -55,8 +56,15 @@ export function HostScreen({ code }: { code: string }) {
   if (!view || !token) return <main className={styles.stage} aria-busy />;
 
   const tone = view.round?.kind;
+  const announcing = view.phase === 'loading' && view.round?.kindChanged;
   return (
-    <main className={styles.stage} data-tone={tone} data-phase={view.phase}>
+    <main
+      className={styles.stage}
+      data-tone={tone}
+      data-phase={view.phase}
+      // Any click on the TV is enough to let it play sound.
+      onPointerDown={director.needsClick ? () => void director.enableSound() : undefined}
+    >
       <Header view={view} />
       <AnimatePresence mode="wait">
         {view.phase === 'lobby' && (
@@ -74,6 +82,10 @@ export function HostScreen({ code }: { code: string }) {
             <Finished view={view} token={token} director={director} />
           </Stage>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {announcing && view.round && <Chapter key={view.round.kind} kind={view.round.kind} />}
       </AnimatePresence>
 
       {director.needsClick && view.phase !== 'lobby' && view.phase !== 'finished' && (
@@ -98,6 +110,30 @@ function Stage({ children }: { children: React.ReactNode }) {
       transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
     >
       {children}
+    </motion.div>
+  );
+}
+
+/** Full-screen announcement when the question changes: "Now name the artist". */
+function Chapter({ kind }: { kind: QuestionKind }) {
+  const first = ROUND_KINDS.indexOf(kind) + 1;
+  const last = ROUND_KINDS.lastIndexOf(kind) + 1;
+  return (
+    <motion.div
+      className={styles.chapter}
+      data-tone={kind}
+      initial={{ clipPath: 'circle(0% at 50% 50%)' }}
+      animate={{ clipPath: 'circle(75% at 50% 50%)' }}
+      exit={{ clipPath: 'circle(0% at 50% 50%)' }}
+      transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
+    >
+      <p className={styles.chapterEyebrow}>
+        Songs {first} to {last}
+      </p>
+      <h1 className={styles.chapterTitle}>
+        {first === 1 ? 'Name the' : 'Now name the'} <em>{KINDS[kind].noun}</em>
+      </h1>
+      <p className={styles.chapterHint}>{KINDS[kind].hint}</p>
     </motion.div>
   );
 }
@@ -217,8 +253,16 @@ function Lobby({ view, token, director }: { view: RoomView; token: string; direc
           <Key onClick={() => void start()} disabled={view.players.length === 0 || starting}>
             {starting ? 'Picking songs…' : 'Start game'}
           </Key>
-          <p role="alert">{error || '10 songs. 15 seconds each. Faster answers score more.'}</p>
+          <p role="alert">
+            {error ||
+              (view.players[0]
+                ? `${view.players[0].name} can also start it from their phone.`
+                : '10 songs. 15 seconds each. Faster answers score more.')}
+          </p>
         </div>
+        {director.needsClick && (
+          <p className={styles.soundNote}>Click anywhere on this screen once, so it can play sound.</p>
+        )}
       </section>
     </div>
   );
@@ -270,6 +314,7 @@ function RevealBar({ startedAt, clockOffset }: { startedAt: number; clockOffset:
 
 function answerNote(answer: RevealedAnswer | undefined, kind: string): string {
   if (!answer) return 'No answer';
+  if (answer.gaveUp) return 'Gave up';
   if (kind === 'year' && answer.yearsOff !== undefined && answer.yearsOff > 0) {
     return `${answer.text} · ${answer.yearsOff} ${answer.yearsOff === 1 ? 'year' : 'years'} off`;
   }
@@ -391,8 +436,8 @@ function Game({
                 <PlayerChip
                   rank={rank}
                   name={player.name}
-                  lit={revealed ? Boolean(answer?.points) : player.answered}
-                  note={revealed ? answerNote(answer, round.kind) : undefined}
+                  lit={revealed ? Boolean(answer?.points) : player.answered && !player.gaveUp}
+                  note={revealed ? answerNote(answer, round.kind) : player.gaveUp ? 'Gave up' : undefined}
                   badge={
                     revealed && answer?.points
                       ? `${fastest === player.id ? '★ ' : ''}+${answer.points}`
@@ -415,6 +460,21 @@ function Game({
           </div>
         )}
       </aside>
+
+      {/* Into the reveal too: the last player to give up ends the round at once. */}
+      {(view.phase === 'guessing' || view.phase === 'reveal') &&
+        view.players
+          .filter((p) => p.gaveUp)
+          .map((p, i) => (
+            <WhiteFlag
+              key={p.id}
+              name={p.name}
+              seed={`${p.id}:${round.index}`}
+              slot={i}
+              tone={round.kind}
+              jukebox={director.jukebox}
+            />
+          ))}
 
       {revealed && round.revealStartedAt !== null && (
         <RevealBar startedAt={round.revealStartedAt} clockOffset={clockOffset} />

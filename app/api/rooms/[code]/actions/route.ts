@@ -49,15 +49,23 @@ export async function POST(
   if (body.type === 'tick') action = { type: 'tick' };
   if (body.type === 'next') action = { type: 'next', roundIndex };
 
+  // The TV can start a game, and so can the first player, from their phone.
+  const leader = viewer.role === 'player' && room.players[0]?.id === viewer.playerId;
+  if (body.type === 'start' && (viewer.role === 'host' || leader)) {
+    const { songs, finale } = await pickSongs(
+      ROUNDS_PER_GAME + SPARE_SONGS,
+      room.playedSongIds,
+      room.finale?.id,
+    );
+    action = {
+      type: 'start',
+      songs: songs.slice(0, ROUNDS_PER_GAME),
+      spares: songs.slice(ROUNDS_PER_GAME),
+      finale,
+    };
+  }
+
   if (viewer.role === 'host') {
-    if (body.type === 'start') {
-      const songs = await pickSongs(ROUNDS_PER_GAME + SPARE_SONGS, room.playedSongIds);
-      action = {
-        type: 'start',
-        songs: songs.slice(0, ROUNDS_PER_GAME),
-        spares: songs.slice(ROUNDS_PER_GAME),
-      };
-    }
     if (body.type === 'audio-started') action = { type: 'audio-started', roundIndex };
     if (body.type === 'audio-failed') action = { type: 'audio-failed', roundIndex };
     if (body.type === 'remove-player' && body.playerId) {
@@ -66,6 +74,7 @@ export async function POST(
   } else {
     const { playerId } = viewer;
     if (body.type === 'answer') action = { type: 'answer', playerId, text: String(body.text ?? '') };
+    if (body.type === 'give-up') action = { type: 'give-up', playerId };
     if (body.type === 'rename') action = { type: 'rename', playerId, name: String(body.name ?? '') };
     if (body.type === 'leave') action = { type: 'remove-player', playerId };
   }
