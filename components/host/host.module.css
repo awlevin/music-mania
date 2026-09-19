@@ -276,6 +276,7 @@
   gap: 1.2em;
   align-self: stretch;
   justify-content: center;
+  min-height: 0;
 }
 
 .lobbyPlayers {
@@ -283,7 +284,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.6em;
   align-content: start;
-  min-height: 19em;
+  min-height: 15em;
 }
 
 .lobbyEmpty {
@@ -325,6 +326,178 @@
 .lobbyStart p {
   font-size: 1.05em;
   color: var(--chrome);
+}
+
+/* --- Difficulty ---------------------------------------------------------- */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+}
+
+.setupSummary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  width: 100%;
+  padding: 0.55em 0.9em;
+  border: 0;
+  border-radius: var(--radius-strip);
+  background: rgb(255 255 255 / 0.05);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  color: var(--paper);
+  font-family: var(--font-strip), sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms;
+}
+
+.setupSummary:hover,
+.setupSummary[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.09);
+}
+
+.setupEyebrow {
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.setupSummary strong {
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--butter);
+}
+
+.setupDecades {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.95em;
+  color: var(--chrome);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.setupToggle {
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.setupPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8em;
+  overflow: hidden;
+}
+
+.setupPanel > :first-child {
+  margin-top: 0.8em;
+}
+
+.difficulty {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5em;
+}
+
+.difficulty button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1em;
+  padding: 0.6em 0.9em;
+  border: 0;
+  border-radius: var(--radius-strip);
+  background: var(--booth-lift);
+  color: var(--chrome);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  font-family: var(--font-strip), sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms;
+}
+
+.difficulty button strong {
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.difficulty button span {
+  font-size: 0.82em;
+}
+
+.difficulty button:hover {
+  color: var(--paper);
+}
+
+.difficulty button[aria-checked='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 0.25em 0 var(--paper-shade);
+}
+
+.difficulty button[aria-checked='true'] span {
+  color: var(--ink-soft);
+}
+
+.decades {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.setupHint {
+  font-size: 0.9em;
+  color: var(--chrome);
+}
+
+.decadeChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+}
+
+.decadeChips button {
+  padding: 0.35em 0.85em;
+  border: 0;
+  border-radius: 99em;
+  background: transparent;
+  color: var(--chrome);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms,
+    transform 300ms var(--ease-spring);
+}
+
+.decadeChips button:hover {
+  color: var(--paper);
+}
+
+.decadeChips button[aria-pressed='true'] {
+  background: var(--butter);
+  color: var(--ink);
+  box-shadow: none;
+  cursor: default;
+  transform: scale(1.06);
 }
 
 /* --- Game ---------------------------------------------------------------- */

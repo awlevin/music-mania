@@ -7,6 +7,7 @@ import catalog from '@/data/catalog.json';
 import finales from '@/data/finales.json';
 import lobby from '@/data/lobby.json';
 import { benchedSongIds } from '@/lib/feedback/store';
+import { decadeOf } from '@/lib/game/decades';
 import type { Song } from '@/lib/game/types';
 
 import { refreshPreviews } from './itunes';
@@ -69,20 +70,31 @@ export function chooseSongs(
   return [...picked, ...leftovers].slice(0, count);
 }
 
+/** The songs from the given decades (start years: 2010 for the 2010s). */
+export function fromDecades(songs: readonly Song[], decades: readonly number[]): Song[] {
+  const wanted = new Set(decades);
+  return songs.filter((s) => wanted.has(decadeOf(s.year)));
+}
+
 /**
  * Songs for one game and the finale, exactly as a room draws them, but with
  * the preview URLs still as stored. The shuffle preview page uses this to
- * show what a game would have played without a trip to iTunes.
+ * show what a game would have played without a trip to iTunes. Without
+ * `decades` the whole catalog is in play.
  */
 export async function drawSongs(
   count: number,
   excludeIds: readonly number[],
   lastFinaleId?: number,
+  decades?: readonly number[],
 ): Promise<{ songs: Song[]; finales: Song[] }> {
   // Songs someone has reported sit out until the report is closed.
   const benched = new Set(await benchedSongIds().catch(() => []));
   const playable = SONGS.filter((s) => !benched.has(s.id));
-  const songs = chooseSongs(count, excludeIds, Math.random, playable);
+  const inPlay = decades ? fromDecades(playable, decades) : playable;
+  // A decade that has been reported down to nothing falls back to the whole catalog.
+  const pool = inPlay.length >= count ? inPlay : playable;
+  const songs = chooseSongs(count, excludeIds, Math.random, pool);
   return { songs, finales: chooseFinales(songs, lastFinaleId) };
 }
 
@@ -91,8 +103,9 @@ export async function pickSongs(
   count: number,
   excludeIds: readonly number[],
   lastFinaleId?: number,
+  decades?: readonly number[],
 ): Promise<{ songs: Song[]; finales: Song[] }> {
-  const { songs, finales } = await drawSongs(count, excludeIds, lastFinaleId);
+  const { songs, finales } = await drawSongs(count, excludeIds, lastFinaleId, decades);
   const fresh = await refreshPreviews([...songs, ...finales]);
   return { songs: fresh.slice(0, songs.length), finales: fresh.slice(songs.length) };
 }

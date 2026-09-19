@@ -23,9 +23,19 @@ import { useJoinUrl } from '@/lib/client/useJoinUrl';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, REVEAL_MS, ROUND_KINDS } from '@/lib/game/config';
+import {
+  DECADE_COUNT,
+  DECADES,
+  DIFFICULTIES,
+  DIFFICULTY_NAME,
+  decadeName,
+  describeDecades,
+  pickDecade,
+  withDifficulty,
+} from '@/lib/game/decades';
 import { KINDS } from '@/lib/game/kinds';
 import { rankPlayers } from '@/lib/game/rank';
-import type { QuestionKind, RevealedAnswer, RoomView } from '@/lib/game/types';
+import type { QuestionKind, RevealedAnswer, RoomView, Setup } from '@/lib/game/types';
 
 import { Confetti } from './Confetti';
 import { Halo } from './Halo';
@@ -362,6 +372,8 @@ function Lobby({ view, token, director }: { view: RoomView; token: string; direc
           )}
         </div>
 
+        <GameSetup view={view} token={token} />
+
         <div className={styles.lobbyStart}>
           <Key onClick={() => void start()} disabled={view.players.length === 0 || starting}>
             {starting ? 'Picking songs…' : 'Start game'}
@@ -377,6 +389,113 @@ function Lobby({ view, token, director }: { view: RoomView; token: string; direc
           <p className={styles.soundNote}>Click anywhere on this screen once, so it can play sound.</p>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * Difficulty, in three layers: a one-line summary of what the next game
+ * draws from; open it for Easy, Medium and Hard; and behind that, the
+ * decades themselves. The choice lives in the room, so a phone that starts
+ * the game gets the same songs.
+ */
+function GameSetup({ view, token }: { view: RoomView; token: string }) {
+  const [open, setOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
+  // What this screen just asked for, shown until the room catches up.
+  const [draft, setDraft] = useState<Setup | null>(null);
+  const [error, setError] = useState('');
+  const setup = draft ?? view.setup;
+
+  const serverKey = `${view.setup.difficulty}:${view.setup.decades.join(',')}`;
+  const draftKey = draft ? `${draft.difficulty}:${draft.decades.join(',')}` : null;
+  if (draft && draftKey === serverKey) setDraft(null);
+
+  const apply = async (next: Setup) => {
+    if (next === setup) return;
+    setError('');
+    setDraft(next);
+    const result = await send(view.code, token, { type: 'setup', ...next });
+    if (!result.ok) {
+      setError(result.error);
+      setDraft(null);
+    }
+  };
+
+  return (
+    <div className={styles.setup}>
+      <button
+        type="button"
+        className={styles.setupSummary}
+        aria-expanded={open}
+        aria-controls="game-setup"
+        onClick={() => setOpen(!open)}
+      >
+        <span className={styles.setupEyebrow}>Difficulty</span>
+        <strong>{DIFFICULTY_NAME[setup.difficulty]}</strong>
+        <span className={styles.setupDecades}>Songs from {describeDecades(setup.decades)}</span>
+        <span className={styles.setupToggle}>{open ? 'Done' : 'Change'}</span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="panel"
+            id="game-setup"
+            className={styles.setupPanel}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
+          >
+            <div className={styles.difficulty} role="radiogroup" aria-label="Difficulty">
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={d === setup.difficulty}
+                  onClick={() => void apply(withDifficulty(setup, d))}
+                >
+                  <strong>{DIFFICULTY_NAME[d]}</strong>
+                  <span>{DECADE_COUNT[d]} decades</span>
+                </button>
+              ))}
+            </div>
+
+            {picking ? (
+              <div className={styles.decades}>
+                <p className={styles.setupHint}>
+                  Tap a decade to swap it in. {DECADE_COUNT[setup.difficulty]} play at a time.
+                </p>
+                <div className={styles.decadeChips} role="group" aria-label="Decades">
+                  {DECADES.map((decade) => (
+                    <button
+                      key={decade}
+                      type="button"
+                      aria-pressed={setup.decades.includes(decade)}
+                      onClick={() => void apply(pickDecade(setup, decade))}
+                    >
+                      {decadeName(decade)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Key variant="quiet" onClick={() => setPicking(true)}>
+                  Pick the decades
+                </Key>
+              </div>
+            )}
+            {error && (
+              <p className={styles.setupHint} role="alert">
+                {error}
+              </p>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

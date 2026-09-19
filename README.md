@@ -21,7 +21,10 @@ plays from where they are sitting. Nothing to install, no accounts.
 
 1. **Put one screen in front of everyone.** A laptop on the coffee table, or
    mirrored to the TV. Press *Host a game*. The screen prints a QR code and a
-   four-letter room code, and it is the only thing that makes noise.
+   four-letter room code, and it is the only thing that makes noise. It also
+   sets the difficulty: *easy* draws songs from the two most recent decades,
+   *medium* from four and *hard* from six, and any of those decades can be
+   swapped for another, back to the 1960s.
 2. **Everyone joins from their phone.** Scan, type a name, wait. Up to twelve
    players. Whoever joined first runs the game and presses *Start* from their
    phone when the room is full enough; after that anybody can push the room on

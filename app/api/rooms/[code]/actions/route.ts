@@ -1,5 +1,6 @@
 import { pickSongs } from '@/lib/catalog';
 import { ROUNDS_PER_GAME, SPARE_SONGS } from '@/lib/game/config';
+import { defaultSetup, isDifficulty } from '@/lib/game/decades';
 import type { Action } from '@/lib/game/types';
 import { dispatch, identify, newPlayerId, newToken, normalizeCode } from '@/lib/realtime/rooms';
 import { getStore } from '@/lib/realtime/store';
@@ -15,6 +16,8 @@ interface Body {
   text?: string;
   playerId?: string;
   roundIndex?: number;
+  difficulty?: string;
+  decades?: unknown;
 }
 
 export async function POST(
@@ -64,6 +67,7 @@ export async function POST(
       ROUNDS_PER_GAME + SPARE_SONGS,
       room.playedSongIds,
       room.finales?.[0]?.id,
+      (room.setup ?? defaultSetup()).decades,
     );
     action = {
       type: 'start',
@@ -78,6 +82,10 @@ export async function POST(
     if (body.type === 'audio-failed') action = { type: 'audio-failed', roundIndex };
     if (body.type === 'remove-player' && body.playerId) {
       action = { type: 'remove-player', playerId: body.playerId };
+    }
+    if (body.type === 'setup' && isDifficulty(body.difficulty)) {
+      const decades = Array.isArray(body.decades) ? body.decades.map(Number) : [];
+      action = { type: 'setup', difficulty: body.difficulty, decades };
     }
   } else {
     const { playerId } = viewer;
