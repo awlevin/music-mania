@@ -94,6 +94,21 @@ for (let round = 0; round < ROUNDS; round++) {
     await phones[0].page.screenshot({ path: `${SHOTS}08-phone-guessing.png` });
   }
 
+  if (round === 4) {
+    // Benedict needs a minute. Every clock must stand still until Ana resumes.
+    await phones[1].page.getByRole('button', { name: 'Pause the game' }).click();
+    await host.getByRole('heading', { name: 'Intermission' }).waitFor();
+    await host.getByText('Paused by Benedict').waitFor();
+    const before = await host.locator('[class*="countdown"]').textContent();
+    await host.waitForTimeout(3200);
+    const after = await host.locator('[class*="countdown"]').textContent();
+    if (before !== after) problems.push(`the countdown moved while paused: ${before} → ${after}`);
+    await host.screenshot({ path: `${SHOTS}18-host-intermission.png` });
+    await phones[0].page.screenshot({ path: `${SHOTS}19-phone-intermission.png` });
+    await phones[0].page.getByRole('button', { name: 'Resume' }).click();
+    await host.getByRole('heading', { name: 'Intermission' }).waitFor({ state: 'hidden' });
+  }
+
   const year = await phones[0].page.getByPlaceholder(/Year/).count();
   const noun = (await phones[0].page.locator('h1 em').textContent()).trim();
   const nowPlaying = requested[round];
@@ -139,11 +154,11 @@ for (let round = 0; round < ROUNDS; round++) {
   if (round === 1 && /localhost|127\.0\.0\.1/.test(BASE)) {
     // Chidi thinks the album is wrong, and says so from his phone.
     const chidi = phones[2].page;
-    await chidi.getByRole('button', { name: /Something off with this song/ }).click();
+    await chidi.getByRole('button', { name: 'Send feedback' }).click();
     await chidi.getByRole('button', { name: 'Wrong album' }).click();
     await chidi.getByLabel('Your feedback').fill('It was on the debut, not this one.');
     await chidi.screenshot({ path: `${SHOTS}15-phone-feedback.png` });
-    await chidi.getByRole('button', { name: 'Send feedback' }).click();
+    await chidi.getByRole('dialog').getByRole('button', { name: 'Send feedback' }).click();
     await chidi.getByText(/Got it. That is FB-\d+/).waitFor();
     await chidi.screenshot({ path: `${SHOTS}16-phone-feedback-sent.png` });
     await chidi.getByRole('button', { name: 'Back to the game' }).click();

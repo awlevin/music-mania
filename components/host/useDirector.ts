@@ -6,10 +6,18 @@ import { send } from '@/lib/client/api';
 import { getJukebox, type Jukebox } from '@/lib/client/jukebox';
 import type { RoomView } from '@/lib/game/types';
 
-/** Time on the "get ready" card before the needle drops, so the room can read the question. */
-const INTRO_MS = 3200;
+/** Time on the "get ready" card before the music starts, so the room can read the question. */
+const INTRO_MS = 3600;
 /** Longer when the question changes kind: the announcement needs reading. */
 const ANNOUNCE_MS = 6000;
+/** The tonearm swings in over this long; the music starts as it lands. */
+const NEEDLE_MS = 1100;
+
+/** Seconds. The last song leaves slowly; the next arrives quickly, because its clock is running. */
+const FADE_OUT = 1.6;
+const FADE_IN = 0.7;
+const LOBBY_FADE = 1.5;
+const FINALE_CROSSFADE = 3;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -27,12 +35,15 @@ export interface Director {
   needsClick: boolean;
   /** Call from a click handler. */
   enableSound: () => Promise<void>;
+  /** True from the moment the tonearm starts down until the round is over. */
+  needleDown: boolean;
 }
 
 /**
- * Keeps the jukebox in step with the room. It loads each round's preview,
- * drops the needle after the intro, and only then tells the server the round
- * has begun, so the 15 seconds start when the room can actually hear music.
+ * Keeps the jukebox in step with the room. Between songs it fades the old one
+ * out while the next loads on the other deck, swings the needle in, and only
+ * when sound is actually out tells the server the round has begun, so the 15
+ * seconds start when the room can hear music.
  */
 export function useDirector(
   code: string,
@@ -44,7 +55,9 @@ export function useDirector(
   const [jukebox] = useState(() => (typeof window === 'undefined' ? null : getJukebox()));
   /** Whether the browser currently lets this page make sound. */
   const [unlocked, setUnlocked] = useState(() => jukebox?.unlocked ?? false);
-  /** The round + URL the jukebox was last pointed at, so each is cued once. */
+  /** The cue whose needle has started down. */
+  const [dropped, setDropped] = useState('');
+  /** What the jukebox was last pointed at, so each thing is cued once. */
   const cued = useRef('');
 
   useEffect(() => () => jukebox?.stop(), [jukebox]);
@@ -60,76 +73,81 @@ export function useDirector(
   const previewUrl = view?.round?.previewUrl;
   const nextPreviewUrl = view?.round?.nextPreviewUrl;
   const guessStartedAt = view?.round?.guessStartedAt ?? null;
-  const finaleUrl = view?.finaleUrl;
+  const finaleUrls = view?.finaleUrls;
+  const finaleKey = finaleUrls?.join('|') ?? '';
   const lobbyUrl = view?.lobbyUrl;
   const introMs = view?.round?.kindChanged ? ANNOUNCE_MS : INTRO_MS;
+  const paused = Boolean(view?.pause);
+  const roundKey = roundIndex !== undefined && previewUrl ? `${roundIndex}:${previewUrl}` : '';
+
+  useEffect(() => {
+    if (!jukebox || !unlocked) return;
+    if (paused) jukebox.hold();
+    else jukebox.release();
+  }, [jukebox, unlocked, paused]);
 
   useEffect(() => {
     if (!jukebox || !token || phase === undefined || !unlocked) return;
+    const stillCued = (key: string) => cued.current === key;
 
     if (phase === 'lobby') {
       // Background music while people join, quieter than the game itself.
-      const key = lobbyMusic && lobbyUrl ? `lobby:${lobbyUrl}` : '';
-      if (cued.current === key) return;
+      const key = lobbyMusic && lobbyUrl ? `lobby:${lobbyUrl}` : 'lobby:silent';
+      if (stillCued(key)) return;
       cued.current = key;
       void (async () => {
-        await jukebox.fadeOut();
-        if (!key || cued.current !== key) return;
+        if (key === 'lobby:silent') return jukebox.fadeOut(0.8);
         try {
-          await jukebox.load(lobbyUrl!);
-          if (cued.current === key) await jukebox.play(0, true, 0.45);
+          await jukebox.cue(lobbyUrl!);
+          if (stillCued(key)) await jukebox.start({ loop: true, volume: 0.45, fadeIn: LOBBY_FADE, fadeOutOld: LOBBY_FADE });
         } catch {
           // A silent lobby is still a lobby.
         }
       })();
       return;
     }
+
     if (phase === 'finished') {
-      // The party song, looping under the final scores.
-      const key = `finale:${finaleUrl ?? ''}`;
-      if (cued.current === key) return;
+      // The party songs, each fading into the next, the first one rising out
+      // of the last question's song.
+      const key = `finale:${finaleKey}`;
+      if (stillCued(key)) return;
       cued.current = key;
-      void (async () => {
-        await jukebox.fadeOut();
-        if (!finaleUrl || cued.current !== key) return;
-        try {
-          await jukebox.load(finaleUrl);
-          if (cued.current === key) await jukebox.play(0, true);
-        } catch {
-          // No finale is a quieter ending, not a broken one.
-        }
-      })();
+      if (finaleUrls?.length) void jukebox.playlist(finaleUrls, 1, FINALE_CROSSFADE);
+      else void jukebox.fadeOut(FADE_OUT);
       return;
     }
-    if (finaleUrl) jukebox.prefetch(finaleUrl);
-    if (roundIndex === undefined || !previewUrl) return;
-    if (nextPreviewUrl && phase !== 'loading') jukebox.prefetch(nextPreviewUrl);
 
-    const key = `${roundIndex}:${previewUrl}`;
-    if (cued.current === key) return;
-    cued.current = key;
-
+    if (!roundKey || roundIndex === undefined || !previewUrl) return;
+    if (phase !== 'loading') jukebox.prefetch(finaleUrls?.[0] ?? nextPreviewUrl ?? previewUrl);
+    if (stillCued(roundKey)) return;
+    cued.current = roundKey;
     // Judged by the cue alone, not by effect cleanup: an unrelated re-render
     // must never strand a round that is halfway through loading.
-    const stillCurrent = () => cued.current === key;
+    const current = () => stillCued(roundKey);
 
     (async () => {
       try {
         if (phase === 'loading') {
-          await Promise.all([jukebox.fadeOut().then(() => jukebox.load(previewUrl)), wait(introMs)]);
-          if (!stillCurrent()) return;
-          await jukebox.play();
-          if (!stillCurrent()) return;
+          // The old song leaves while the new one loads on the other deck.
+          void jukebox.fadeOut(FADE_OUT);
+          await Promise.all([jukebox.cue(previewUrl), wait(introMs - NEEDLE_MS)]);
+          if (!current()) return;
+          setDropped(roundKey);
+          await wait(NEEDLE_MS);
+          if (!current()) return;
+          await jukebox.start({ fadeIn: FADE_IN });
+          if (!current()) return;
           await sendUntilHeard(code, token, { type: 'audio-started', roundIndex });
         } else {
           // The host page was reloaded mid-song: rejoin it where it should be.
-          await jukebox.load(previewUrl);
-          if (!stillCurrent()) return;
+          await jukebox.cue(previewUrl);
+          if (!current()) return;
           const offset = guessStartedAt ? (Date.now() + clockOffset - guessStartedAt) / 1000 : 0;
-          await jukebox.play(Math.max(offset, 0));
+          await jukebox.start({ offset: Math.max(offset, 0), fadeIn: FADE_IN });
         }
       } catch (error) {
-        if (!stillCurrent()) return;
+        if (!current()) return;
         cued.current = '';
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
           setUnlocked(false);
@@ -138,9 +156,14 @@ export function useDirector(
         }
       }
     })();
-    // guessStartedAt, clockOffset and introMs are read once, when the round is cued.
+    // guessStartedAt, clockOffset, introMs and finaleUrls are read once, when the thing is cued.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jukebox, token, code, phase, roundIndex, previewUrl, nextPreviewUrl, finaleUrl, lobbyUrl, lobbyMusic, unlocked]);
+  }, [jukebox, token, code, phase, roundKey, nextPreviewUrl, finaleKey, lobbyUrl, lobbyMusic, unlocked]);
 
-  return { jukebox, needsClick: phase !== undefined && !unlocked, enableSound };
+  return {
+    jukebox,
+    needsClick: phase !== undefined && !unlocked,
+    enableSound,
+    needleDown: !paused && (phase === 'guessing' || phase === 'reveal' || (phase === 'loading' && dropped === roundKey)),
+  };
 }

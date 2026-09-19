@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
-import { Field, Key, PlayerChip, TitleStrip, Wordmark } from '@/components/ds';
+import { Field, IconButton, Key, PauseIcon, PlayerChip, TitleStrip, Wordmark } from '@/components/ds';
 import { FeedbackSheet } from '@/components/feedback/FeedbackSheet';
 import { send } from '@/lib/client/api';
 import { lastName, seats } from '@/lib/client/storage';
+import { useLinerNote } from '@/lib/client/useLinerNote';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, MAX_ANSWER_LENGTH, MAX_NAME_LENGTH, REVEAL_MS } from '@/lib/game/config';
@@ -68,24 +69,35 @@ interface ShellProps {
   children: React.ReactNode;
   tone?: string;
   token?: string;
-  /** Title of the song on screen, once revealed: feedback can be about it. */
+  /** Title of the song on screen, once revealed. Feedback is offered then, about it or anything. */
   songTitle?: string;
+  /** Shown while a clock is running. */
+  onPause?: () => void;
 }
 
-function Shell({ code, children, tone, token, songTitle }: ShellProps) {
+function Shell({ code, children, tone, token, songTitle, onPause }: ShellProps) {
   const [feedback, setFeedback] = useState(false);
   return (
     <main className={styles.page} data-tone={tone}>
       <header className={styles.top}>
-        <Wordmark className={styles.topMark} />
-        <span className={styles.topCode}>Room {code}</span>
+        <Wordmark className={styles.topMark} href="/" />
+        <div className={styles.topEnd}>
+          <span className={styles.topCode}>Room {code}</span>
+          {onPause && (
+            <IconButton label="Pause the game" onClick={onPause}>
+              <PauseIcon />
+            </IconButton>
+          )}
+        </div>
       </header>
       {children}
-      <footer className={styles.foot}>
-        <button type="button" className={styles.footLink} onClick={() => setFeedback(true)}>
-          {songTitle ? 'Something off with this song? Tell us' : 'Send feedback'}
-        </button>
-      </footer>
+      {songTitle && (
+        <footer className={styles.foot}>
+          <button type="button" className={styles.footLink} onClick={() => setFeedback(true)}>
+            Send feedback
+          </button>
+        </footer>
+      )}
       {feedback && (
         <FeedbackSheet code={code} token={token} songTitle={songTitle} onClose={() => setFeedback(false)} />
       )}
@@ -211,7 +223,18 @@ function Room({
 
   const me = view.players.find((p) => p.id === view.you!.id);
   return (
-    <Shell code={code} tone={view.round?.kind} token={token} songTitle={view.round?.song?.title}>
+    <Shell
+      code={code}
+      tone={view.round?.kind}
+      token={token}
+      songTitle={view.phase === 'reveal' ? view.round?.song?.title : undefined}
+      onPause={
+        !view.pause && (view.phase === 'guessing' || view.phase === 'reveal')
+          ? () => void send(code, token, { type: 'pause' })
+          : undefined
+      }
+    >
+      {view.pause && <PausedView view={view} token={token} />}
       {me && view.phase !== 'lobby' && (
         <div className={styles.me}>
           <span>{me.name}</span>
@@ -254,6 +277,29 @@ function StartKey({ view, token, label }: { view: RoomView; token: string; label
         </p>
       )}
     </>
+  );
+}
+
+/** Paused: everything stops, and whoever is ready presses Resume. */
+function PausedView({ view, token }: { view: RoomView; token: string }) {
+  const pause = view.pause!;
+  const mine = view.players.find((p) => p.id === view.you!.id)?.name === pause.by;
+  const { note, index } = useLinerNote(pause.at, pause.by);
+  return (
+    <div className={styles.paused} role="dialog" aria-modal aria-label="Game paused">
+      <div className={styles.pauseBars} aria-hidden>
+        <i />
+        <i />
+      </div>
+      <h1 className={styles.headline}>Intermission</h1>
+      <p className={styles.eyebrow}>{mine ? 'You paused the game' : `Paused by ${pause.by}`}</p>
+      <p key={index} className={styles.linerNote}>
+        {note}
+      </p>
+      <Key block onClick={() => void send(view.code, token, { type: 'resume' })}>
+        Resume
+      </Key>
+    </div>
   );
 }
 
@@ -322,8 +368,16 @@ function LoadingView({ view }: { view: RoomView }) {
   );
 }
 
-function TimeBar({ startedAt, clockOffset }: { startedAt: number; clockOffset: number }) {
-  const now = useServerNow(clockOffset, true);
+function TimeBar({
+  startedAt,
+  clockOffset,
+  frozenAt,
+}: {
+  startedAt: number;
+  clockOffset: number;
+  frozenAt?: number | null;
+}) {
+  const now = useServerNow(clockOffset, true, frozenAt);
   const left = Math.min(Math.max(1 - (now - startedAt) / GUESS_MS, 0), 1);
   return (
     <div className={styles.timeBar} role="timer" aria-label={`${Math.ceil(left * 15)} seconds left`}>
@@ -358,7 +412,9 @@ function GuessView({ view, token, clockOffset }: { view: RoomView; token: string
   return (
     <section className={styles.centre} data-align="top">
       <RoundHeading view={view} lead="Name the" />
-      {round.guessStartedAt !== null && <TimeBar startedAt={round.guessStartedAt} clockOffset={clockOffset} />}
+      {round.guessStartedAt !== null && (
+        <TimeBar startedAt={round.guessStartedAt} clockOffset={clockOffset} frozenAt={view.pause?.at} />
+      )}
 
       {answer ? (
         <TitleStrip
@@ -420,8 +476,16 @@ function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
 }
 
-function NextCountdown({ startedAt, clockOffset }: { startedAt: number; clockOffset: number }) {
-  const now = useServerNow(clockOffset, true);
+function NextCountdown({
+  startedAt,
+  clockOffset,
+  frozenAt,
+}: {
+  startedAt: number;
+  clockOffset: number;
+  frozenAt?: number | null;
+}) {
+  const now = useServerNow(clockOffset, true, frozenAt);
   return <>{Math.max(0, Math.ceil((startedAt + REVEAL_MS - now) / 1000))}</>;
 }
 
@@ -451,6 +515,13 @@ function RevealView({ view, token, clockOffset }: { view: RoomView; token: strin
         <span>{verdict}</span>
       </div>
 
+      {/* The thing everyone was asked for, big enough to read at arm's length. */}
+      <div className={styles.answerHero}>
+        <span>The {KINDS[round.kind].noun} was</span>
+        <strong data-long={String(song[round.kind]).length > 16}>{song[round.kind]}</strong>
+        {mine && !mine.gaveUp && !mine.correct && <small>You said {mine.text}</small>}
+      </div>
+
       <div className={styles.answerCard}>
         {/* eslint-disable-next-line @next/next/no-img-element -- remote album art */}
         <img src={song.artworkUrl} alt={`${song.album} cover`} className={styles.art} />
@@ -478,7 +549,7 @@ function RevealView({ view, token, clockOffset }: { view: RoomView; token: strin
       </Key>
       {round.revealStartedAt !== null && (
         <p className={styles.small}>
-          Moves on by itself in <NextCountdown startedAt={round.revealStartedAt} clockOffset={clockOffset} />
+          Moves on by itself in <NextCountdown startedAt={round.revealStartedAt} clockOffset={clockOffset} frozenAt={view.pause?.at} />
         </p>
       )}
     </section>

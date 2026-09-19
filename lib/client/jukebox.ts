@@ -1,11 +1,13 @@
 // The only thing in Music Mania that makes sound. It runs on the host screen;
 // phones never load it.
 //
-// One <audio> element plays every preview, routed through a Web Audio graph
-// for the fade-outs and the spectrum the record's halo draws. The iTunes CDN
-// sends `access-control-allow-origin: *`, so the analyser gets real samples.
+// Two decks, like a DJ's: while one plays, the other loads the next preview,
+// and every change of song is a crossfade between them. Both run through one
+// Web Audio graph, which also feeds the spectrum the record's halo draws. The
+// iTunes CDN sends `access-control-allow-origin: *`, so the analyser gets
+// real samples.
 
-const FADE_SECONDS = 0.5;
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** A twentieth of a second of silence, as a WAV file. */
 function silence(): string {
@@ -28,20 +30,46 @@ function silence(): string {
   return URL.createObjectURL(new Blob([bytes], { type: 'audio/wav' }));
 }
 
+interface Deck {
+  audio: HTMLAudioElement;
+  gain: GainNode | null;
+  /** What the gain should sit at while this deck is the one being heard. */
+  volume: number;
+  /** Bumped by every load, so a superseded load cannot resolve as the new one. */
+  loads: number;
+}
+
+function newDeck(): Deck {
+  const audio = new Audio();
+  audio.crossOrigin = 'anonymous';
+  audio.preload = 'auto';
+  return { audio, gain: null, volume: 1, loads: 0 };
+}
+
+export interface StartOptions {
+  /** Seconds into the preview to start from. */
+  offset?: number;
+  loop?: boolean;
+  volume?: number;
+  /** Seconds for the new song to rise to `volume`. */
+  fadeIn?: number;
+  /** Seconds for whatever was playing to fall away underneath it. */
+  fadeOutOld?: number;
+}
+
 export class Jukebox {
-  private audio: HTMLAudioElement;
+  private decks: [Deck, Deck] = [newDeck(), newDeck()];
+  /** Index of the deck the room is hearing. The other one is free to load. */
+  private live = 0;
   private context: AudioContext | null = null;
-  private gain: GainNode | null = null;
   private analyser: AnalyserNode | null = null;
   private spectrum: Uint8Array<ArrayBuffer> | null = null;
   private prefetcher: HTMLAudioElement | null = null;
   private primed = false;
-
-  constructor() {
-    this.audio = new Audio();
-    this.audio.crossOrigin = 'anonymous';
-    this.audio.preload = 'auto';
-  }
+  /** Bumped to stop a running playlist. */
+  private playlistRun = 0;
+  private held = false;
+  private runout: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
 
   /**
    * Browsers only let sound start from a click. Call this from one; after
@@ -50,23 +78,31 @@ export class Jukebox {
   async unlock(): Promise<void> {
     if (!this.context) {
       const context = new AudioContext();
-      const source = context.createMediaElementSource(this.audio);
       const analyser = context.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.82;
-      const gain = context.createGain();
-      source.connect(analyser).connect(gain).connect(context.destination);
+      analyser.connect(context.destination);
+      for (const deck of this.decks) {
+        deck.gain = context.createGain();
+        deck.gain.gain.value = 0;
+        context.createMediaElementSource(deck.audio).connect(deck.gain).connect(analyser);
+      }
       this.context = context;
       this.analyser = analyser;
-      this.gain = gain;
       this.spectrum = new Uint8Array(analyser.frequencyBinCount);
     }
     if (this.context.state !== 'running') await this.context.resume();
     // Safari blesses each media element separately, and only for a play()
-    // made inside a click. Spend this click on a moment of silence.
-    if (!this.primed && !this.audio.src) {
-      this.audio.src = silence();
-      await this.audio.play();
+    // made inside a click. Spend this click on a moment of silence per deck.
+    if (!this.primed) {
+      const clip = silence();
+      await Promise.all(
+        this.decks.map((deck) => {
+          if (deck.audio.src) return;
+          deck.audio.src = clip;
+          return deck.audio.play();
+        }),
+      );
       this.primed = true;
     }
   }
@@ -75,23 +111,39 @@ export class Jukebox {
     return this.context?.state === 'running';
   }
 
-  get currentUrl(): string {
-    return this.audio.src;
+  private get idle(): Deck {
+    return this.decks[1 - this.live];
   }
 
-  get playing(): boolean {
-    return !this.audio.paused && !this.audio.ended;
+  private ramp(deck: Deck, to: number, seconds: number): void {
+    if (!deck.gain || !this.context) return;
+    const now = this.context.currentTime;
+    const gain = deck.gain.gain;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(gain.value, now);
+    gain.linearRampToValueAtTime(to, now + Math.max(seconds, 0.02));
   }
 
-  /** Resolves once enough of `url` has arrived to play without stalling. */
-  load(url: string, timeoutMs = 8000): Promise<void> {
+  /**
+   * Load `url` onto the free deck while the live one keeps playing. Resolves
+   * once enough has arrived to play without stalling.
+   */
+  cue(url: string, timeoutMs = 8000): Promise<void> {
+    this.playlistRun++;
+    return this.load(url, timeoutMs);
+  }
+
+  private load(url: string, timeoutMs = 8000): Promise<void> {
+    const deck = this.idle;
+    const mine = ++deck.loads;
     return new Promise((resolve, reject) => {
-      const audio = this.audio;
+      const { audio } = deck;
       const done = (error?: Error) => {
         clearTimeout(timer);
         audio.removeEventListener('canplaythrough', onReady);
         audio.removeEventListener('error', onError);
-        if (error) reject(error);
+        if (mine !== deck.loads) reject(new Error('Superseded by a newer song.'));
+        else if (error) reject(error);
         else resolve();
       };
       const onReady = () => done();
@@ -105,30 +157,139 @@ export class Jukebox {
     });
   }
 
-  /** Start from `offsetSeconds`. Resolves when sound is actually coming out. */
-  async play(offsetSeconds = 0, loop = false, volume = 1): Promise<void> {
-    this.audio.loop = loop;
-    if (this.gain && this.context) {
-      this.gain.gain.cancelScheduledValues(this.context.currentTime);
-      this.gain.gain.setValueAtTime(volume, this.context.currentTime);
-    }
-    if (offsetSeconds > 0) this.audio.currentTime = offsetSeconds;
-    await this.audio.play();
+  /**
+   * Bring the cued song up and let the old one fall away under it. Resolves
+   * when sound is actually coming out.
+   */
+  async start(options: StartOptions = {}): Promise<void> {
+    this.playlistRun++;
+    await this.swap(options);
   }
 
-  async fadeOut(): Promise<void> {
-    if (!this.playing) return;
-    if (this.gain && this.context) {
-      const t = this.context.currentTime;
-      this.gain.gain.cancelScheduledValues(t);
-      this.gain.gain.setValueAtTime(this.gain.gain.value, t);
-      this.gain.gain.linearRampToValueAtTime(0, t + FADE_SECONDS);
-      await new Promise((r) => setTimeout(r, FADE_SECONDS * 1000));
-    }
-    this.audio.pause();
+  private async swap({ offset = 0, loop = false, volume = 1, fadeIn = 0, fadeOutOld = 0.4 }: StartOptions) {
+    const next = this.idle;
+    const old = this.decks[this.live];
+    next.audio.loop = loop;
+    next.volume = volume;
+    if (offset > 0) next.audio.currentTime = offset;
+    this.ramp(next, 0, 0);
+    this.live = 1 - this.live;
+    if (this.held) return; // It starts when the game does.
+    await next.audio.play();
+    this.ramp(next, volume, fadeIn);
+    this.ramp(old, 0, fadeOutOld);
+    // Pause the old deck once it is silent, unless it has been reused by then.
+    const loads = old.loads;
+    setTimeout(() => loads === old.loads && old.audio.pause(), fadeOutOld * 1000 + 60);
   }
 
-  /** Warm the browser cache with the next round's preview. */
+  /** Let the music fall away. Resolves when it is silent. */
+  async fadeOut(seconds: number): Promise<void> {
+    this.playlistRun++;
+    const deck = this.decks[this.live];
+    if (deck.audio.paused) return;
+    const loads = deck.loads;
+    this.ramp(deck, 0, seconds);
+    await wait(seconds * 1000 + 60);
+    if (loads === deck.loads && !this.held) deck.audio.pause();
+  }
+
+  /**
+   * Play `urls` in order, forever, each song crossfading into the next a few
+   * seconds before it ends. Any other call to cue, start or fadeOut ends it.
+   */
+  async playlist(urls: string[], volume: number, crossfade: number): Promise<void> {
+    if (urls.length === 0) return;
+    const run = ++this.playlistRun;
+    const stopped = () => run !== this.playlistRun;
+    for (let i = 0; ; i = (i + 1) % urls.length) {
+      try {
+        await this.load(urls[i]);
+      } catch {
+        if (stopped() || urls.length === 1) return;
+        continue;
+      }
+      if (stopped()) return;
+      // Hold the next song until this one is nearly over.
+      const playing = this.decks[this.live].audio;
+      while (!stopped() && !playing.paused && playing.duration - playing.currentTime > crossfade + 0.25) {
+        await wait(200);
+      }
+      if (stopped()) return;
+      await this.swap({ volume, fadeIn: crossfade, fadeOutOld: crossfade });
+      // The deck that just faded out is the one the next song loads onto.
+      await wait(crossfade * 1000 + 120);
+      if (stopped()) return;
+    }
+  }
+
+  /**
+   * The game is paused: lift the music out, keeping its place, and leave the
+   * needle in the run-out groove: a soft crackle and a thump once a turn.
+   */
+  hold(): void {
+    if (this.held) return;
+    this.held = true;
+    const deck = this.decks[this.live];
+    this.ramp(deck, 0, 0.35);
+    const loads = deck.loads;
+    setTimeout(() => this.held && loads === deck.loads && deck.audio.pause(), 400);
+    this.startRunout();
+  }
+
+  /** Pick the music up where it stopped. */
+  release(): void {
+    if (!this.held) return;
+    this.held = false;
+    this.stopRunout();
+    const deck = this.decks[this.live];
+    if (!deck.audio.src || deck.audio.ended) return;
+    void deck.audio.play().then(
+      () => this.ramp(deck, deck.volume, 0.5),
+      () => {},
+    );
+  }
+
+  private startRunout(): void {
+    const context = this.context;
+    if (!context || !this.analyser || this.runout) return;
+    // One turn of a 33⅓ rpm record is 1.8 s: surface noise, a scatter of
+    // clicks, and the thump of the needle crossing the lead-out.
+    const seconds = 1.8;
+    const buffer = context.createBuffer(1, Math.floor(context.sampleRate * seconds), context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.012;
+    for (let click = 0; click < 22; click++) {
+      const at = Math.floor(Math.random() * (data.length - 40));
+      const size = 0.15 + Math.random() * 0.5;
+      for (let j = 0; j < 30; j++) data[at + j] += (Math.random() * 2 - 1) * size * Math.exp(-j / 6);
+    }
+    for (let j = 0; j < 2600; j++) {
+      data[j] += Math.sin((j / context.sampleRate) * 2 * Math.PI * 58) * 0.55 * Math.exp(-j / 700);
+    }
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.5, context.currentTime + 0.8);
+    source.connect(gain).connect(this.analyser);
+    source.start();
+    this.runout = { source, gain };
+  }
+
+  private stopRunout(): void {
+    const runout = this.runout;
+    if (!runout || !this.context) return;
+    this.runout = null;
+    const now = this.context.currentTime;
+    runout.gain.gain.cancelScheduledValues(now);
+    runout.gain.gain.setValueAtTime(runout.gain.gain.value, now);
+    runout.gain.gain.linearRampToValueAtTime(0, now + 0.3);
+    runout.source.stop(now + 0.35);
+  }
+
+  /** Warm the browser cache with a preview that will be wanted soon. */
   prefetch(url: string): void {
     if (this.prefetcher?.src === url) return;
     this.prefetcher = new Audio();
@@ -180,7 +341,9 @@ export class Jukebox {
   }
 
   stop(): void {
-    this.audio.pause();
+    this.playlistRun++;
+    this.stopRunout();
+    for (const deck of this.decks) deck.audio.pause();
   }
 }
 

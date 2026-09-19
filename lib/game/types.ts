@@ -59,8 +59,10 @@ export interface RoomState {
   roundIndex: number;
   /** Swapped in when a preview refuses to play. */
   spares: Song[];
-  /** What the host plays over the final scores. */
-  finale: Song | null;
+  /** What the host plays over the final scores, in order, each fading into the next. */
+  finales: Song[];
+  /** Set while someone has the game paused. Every deadline waits for it. */
+  pause: { at: number; by: string } | null;
   /** What the host plays while people join. */
   lobbyUrl: string | null;
   /** Every song this room has heard, so "play again" never repeats one. */
@@ -72,7 +74,9 @@ export type Action =
   | { type: 'join'; playerId: string; token: string; name: string }
   | { type: 'rename'; playerId: string; name: string }
   | { type: 'remove-player'; playerId: string }
-  | { type: 'start'; songs: Song[]; spares: Song[]; finale?: Song | null }
+  | { type: 'start'; songs: Song[]; spares: Song[]; finales?: Song[] }
+  | { type: 'pause'; by: string }
+  | { type: 'resume' }
   | { type: 'audio-started'; roundIndex: number }
   | { type: 'audio-failed'; roundIndex: number }
   | { type: 'answer'; playerId: string; text: string }
@@ -122,8 +126,10 @@ export interface RoomView {
   phase: Phase;
   players: PlayerView[];
   round: RoundView | null;
-  /** Host only, from the last reveal on: the song for the final scores. */
-  finaleUrl?: string;
+  /** Host only, from the last reveal on: the songs for the final scores. */
+  finaleUrls?: string[];
+  /** While paused: when it began on the server clock (timers freeze there), and who did it. */
+  pause: { at: number; by: string } | null;
   /** Host only, in the lobby: music to join by. */
   lobbyUrl?: string;
   /** Players only. */

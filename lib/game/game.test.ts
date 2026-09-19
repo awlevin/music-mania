@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { chooseFinale, chooseSongs } from '@/lib/catalog';
+import { chooseFinales, chooseSongs } from '@/lib/catalog';
 
 import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUNDS_PER_GAME } from './config';
 import { matchesArtist, matchesText, parseYear } from './match';
 import { createRoom, reduce } from './reducer';
-import { grade, speedPoints } from './score';
+import { grade, speedPoints, yearShare } from './score';
 import type { Action, RoomState, Song } from './types';
 import { viewFor } from './views';
 
@@ -88,12 +88,26 @@ describe('scoring', () => {
     expect(speedPoints(3000)).toBeGreaterThan(speedPoints(9000));
   });
 
+  it('pays a year guess by closeness, falling away fast past a few years', () => {
+    const shares = [0, 1, 2, 3, 4, 5, 6, 7].map(yearShare);
+    expect(shares[0]).toBe(1);
+    for (let d = 1; d < shares.length; d++) expect(shares[d]).toBeLessThan(shares[d - 1]);
+    // Each extra year costs more than the one before, up to the knee of the curve.
+    expect(shares[0] - shares[1]).toBeLessThan(shares[1] - shares[2]);
+    expect(shares[1] - shares[2]).toBeLessThan(shares[2] - shares[3]);
+    expect(shares[3]).toBeGreaterThan(0.4);
+    expect(shares[5]).toBeLessThan(0.15);
+    expect(shares[7]).toBe(0);
+  });
+
   it('pays part of the pot for a near-miss year', () => {
     const s = song(1, { year: 1984 });
     expect(grade('year', s, '1984', 0)).toMatchObject({ correct: true, points: 1000, yearsOff: 0 });
-    expect(grade('year', s, '1985', 0)).toMatchObject({ correct: false, points: 500, yearsOff: 1 });
-    expect(grade('year', s, '1982', 0)).toMatchObject({ correct: false, points: 250 });
-    expect(grade('year', s, '1990', 0).points).toBe(0);
+    expect(grade('year', s, '1985', 0)).toMatchObject({ correct: false, points: 923, yearsOff: 1 });
+    expect(grade('year', s, '1982', 0)).toMatchObject({ correct: false, points: 726 });
+    expect(grade('year', s, '1981', 0).points).toBe(487);
+    expect(grade('year', s, '1989', 0).points).toBe(135);
+    expect(grade('year', s, '1992', 0).points).toBe(0);
     expect(grade('year', s, 'dunno', 0).points).toBe(0);
   });
 });
@@ -136,6 +150,31 @@ describe('room', () => {
     state = run(state, { type: 'answer', playerId: 'p0', text: 'song 1' }, 5000);
     expect(state.phase).toBe('reveal');
     expect(state.players[1].score).toBe(0);
+  });
+
+  it('stops every clock while paused, and gives the time back on resume', () => {
+    let state = guessing(['Ana', 'Ben']);
+    state = run(state, { type: 'pause', by: 'Ben' }, 1000 + 4000);
+    expect(viewFor(state, { role: 'host' }, 0).pause).toEqual({ at: 5000, by: 'Ben' });
+
+    // An hour passes. Nothing times out, and nobody can answer into the silence.
+    const later = 5000 + 3_600_000;
+    expect(run(state, { type: 'tick' }, later)).toBe(state);
+    expect(reduce(state, { type: 'answer', playerId: 'p0', text: 'song 1' }, later).ok).toBe(false);
+
+    state = run(state, { type: 'resume' }, later);
+    expect(state.pause).toBeNull();
+    // Ana answers 2 s after the resume: 6 s of playing time, not an hour.
+    state = run(state, { type: 'answer', playerId: 'p0', text: 'song 1' }, later + 2000);
+    expect(state.rounds[0].answers.p0.elapsedMs).toBe(6000);
+    // The remaining 9 s still run out on schedule.
+    state = run(state, { type: 'tick' }, later + 11_000 + ANSWER_GRACE_MS);
+    expect(state.phase).toBe('reveal');
+  });
+
+  it('ignores a pause when no clock is running', () => {
+    const lobby = lobbyWith(['Ana']);
+    expect(run(lobby, { type: 'pause', by: 'Ana' }, 5)).toBe(lobby);
   });
 
   it('takes one answer per player', () => {
@@ -253,12 +292,14 @@ describe('catalog', () => {
     expect(picked.map((s) => s.artist).filter((a) => a.startsWith('Queen'))).toHaveLength(1);
   });
 
-  it('ends on a party song the game did not ask about, and not the same one twice', () => {
-    const first = chooseFinale([])!;
-    expect(first).not.toBeNull();
+  it('ends on party songs the game did not ask about, opening on a different one each game', () => {
+    const all = chooseFinales([]);
+    expect(all.length).toBeGreaterThan(3);
+    expect(new Set(all.map((s) => s.id)).size).toBe(all.length);
     for (let i = 0; i < 20; i++) {
-      const next = chooseFinale([first], first.id)!;
-      expect(next.id).not.toBe(first.id);
+      const next = chooseFinales([all[1]], all[0].id);
+      expect(next[0].id).not.toBe(all[0].id);
+      expect(next.some((s) => s.id === all[1].id)).toBe(false);
     }
   });
 

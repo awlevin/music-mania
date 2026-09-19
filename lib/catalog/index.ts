@@ -74,14 +74,14 @@ export async function pickSongs(
   count: number,
   excludeIds: readonly number[],
   lastFinaleId?: number,
-): Promise<{ songs: Song[]; finale: Song | null }> {
+): Promise<{ songs: Song[]; finales: Song[] }> {
   // Songs someone has reported sit out until the report is closed.
   const benched = new Set(await benchedSongIds().catch(() => []));
   const playable = SONGS.filter((s) => !benched.has(s.id));
   const chosen = chooseSongs(count, excludeIds, Math.random, playable);
-  const finale = chooseFinale(chosen, lastFinaleId);
-  const fresh = await refreshPreviews(finale ? [...chosen, finale] : chosen);
-  return { songs: fresh.slice(0, chosen.length), finale: finale ? fresh[fresh.length - 1] : null };
+  const finales = chooseFinales(chosen, lastFinaleId);
+  const fresh = await refreshPreviews([...chosen, ...finales]);
+  return { songs: fresh.slice(0, chosen.length), finales: fresh.slice(chosen.length) };
 }
 
 /** "Feel It Still", for the lobby, with a fresh preview URL. */
@@ -89,19 +89,20 @@ export async function lobbySong(): Promise<Song> {
   return (await refreshPreviews([lobby as Song]))[0];
 }
 
-/** A finale this game did not ask about and the last game did not end on. */
-export function chooseFinale(
+/**
+ * The party songs for the final scores, shuffled: none that this game asked
+ * about, and not opening on the one the last game opened on.
+ */
+export function chooseFinales(
   questions: readonly Song[],
   lastFinaleId?: number,
   random: () => number = Math.random,
-): Song | null {
+): Song[] {
   const asked = new Set(questions.map((s) => s.id));
-  const unasked = FINALES.filter((s) => !asked.has(s.id));
-  const fresh = unasked.filter((s) => s.id !== lastFinaleId);
-  const pool = fresh.length ? fresh : unasked;
-  return pool.length ? pool[Math.floor(random() * pool.length)] : null;
-}
-
-export function catalogSize(): number {
-  return SONGS.length;
+  const order = shuffle(
+    FINALES.filter((s) => !asked.has(s.id)),
+    random,
+  );
+  if (order.length > 1 && order[0].id === lastFinaleId) order.push(order.shift()!);
+  return order;
 }

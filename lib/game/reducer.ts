@@ -33,7 +33,8 @@ export function createRoom(
     rounds: [],
     roundIndex: 0,
     spares: [],
-    finale: null,
+    finales: [],
+    pause: null,
     lobbyUrl,
     playedSongIds: [],
     createdAt: now,
@@ -75,7 +76,7 @@ function advance(state: RoomState): RoomState {
 /** Move past any deadline that `now` has already crossed. */
 export function settle(state: RoomState, now: number): RoomState {
   const round = currentRound(state);
-  if (!round) return state;
+  if (!round || state.pause) return state;
   if (
     state.phase === 'guessing' &&
     round.guessStartedAt !== null &&
@@ -167,7 +168,8 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
           roundIndex: 0,
           rounds: newRounds(action.songs),
           spares: action.spares,
-          finale: action.finale ?? null,
+          finales: action.finales ?? [],
+          pause: null,
           players: state.players.map((p) => ({ ...p, score: 0 })),
           playedSongIds: [...state.playedSongIds, ...action.songs.map((s) => s.id)],
         },
@@ -202,7 +204,34 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
       };
     }
 
+    case 'pause': {
+      // Only while a clock is running: there is nothing to hold otherwise.
+      if (state.pause || (state.phase !== 'guessing' && state.phase !== 'reveal')) {
+        return { ok: true, state };
+      }
+      return { ok: true, state: { ...state, pause: { at: now, by: action.by } } };
+    }
+
+    case 'resume': {
+      if (!state.pause) return { ok: true, state };
+      // Slide the round's clocks forward by the length of the pause, so every
+      // deadline, and every answer's speed, is measured in playing time.
+      const held = Math.max(now - state.pause.at, 0);
+      const round = currentRound(state);
+      const resumed = { ...state, pause: null };
+      if (!round) return { ok: true, state: resumed };
+      return {
+        ok: true,
+        state: withRound(resumed, {
+          ...round,
+          guessStartedAt: round.guessStartedAt === null ? null : round.guessStartedAt + held,
+          revealStartedAt: round.revealStartedAt === null ? null : round.revealStartedAt + held,
+        }),
+      };
+    }
+
     case 'answer': {
+      if (state.pause) return fail('The game is paused.');
       const round = currentRound(state);
       if (state.phase !== 'guessing' || !round || round.guessStartedAt === null) {
         return fail('Time is up for this song.');
@@ -222,6 +251,7 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
     }
 
     case 'give-up': {
+      if (state.pause) return fail('The game is paused.');
       const round = currentRound(state);
       if (state.phase !== 'guessing' || !round || round.guessStartedAt === null) {
         return { ok: true, state };
@@ -240,6 +270,7 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
     }
 
     case 'next': {
+      if (state.pause) return { ok: true, state };
       if (state.phase !== 'reveal' || action.roundIndex !== state.roundIndex) {
         return { ok: true, state };
       }

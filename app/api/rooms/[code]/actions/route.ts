@@ -48,20 +48,28 @@ export async function POST(
 
   if (body.type === 'tick') action = { type: 'tick' };
   if (body.type === 'next') action = { type: 'next', roundIndex };
+  if (body.type === 'resume') action = { type: 'resume' };
+  if (body.type === 'pause') {
+    const by =
+      viewer.role === 'player'
+        ? (room.players.find((p) => p.id === viewer.playerId)?.name ?? 'Someone')
+        : 'The host';
+    action = { type: 'pause', by };
+  }
 
   // The TV can start a game, and so can the first player, from their phone.
   const leader = viewer.role === 'player' && room.players[0]?.id === viewer.playerId;
   if (body.type === 'start' && (viewer.role === 'host' || leader)) {
-    const { songs, finale } = await pickSongs(
+    const { songs, finales } = await pickSongs(
       ROUNDS_PER_GAME + SPARE_SONGS,
       room.playedSongIds,
-      room.finale?.id,
+      room.finales?.[0]?.id,
     );
     action = {
       type: 'start',
       songs: songs.slice(0, ROUNDS_PER_GAME),
       spares: songs.slice(ROUNDS_PER_GAME),
-      finale,
+      finales,
     };
   }
 

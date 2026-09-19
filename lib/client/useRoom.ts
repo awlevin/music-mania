@@ -81,7 +81,7 @@ export function useRoom(code: string, token: string | null, tickDelayMs: number)
     let lastTick = 0;
     const timer = setInterval(() => {
       const { view: current, offset } = latest.current;
-      if (!current) return;
+      if (!current || current.pause) return;
       const due = deadline(current);
       if (due === null) return;
       const now = Date.now() + offset;

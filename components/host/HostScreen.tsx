@@ -16,6 +16,7 @@ import {
 } from '@/components/ds';
 import { FeedbackSheet } from '@/components/feedback/FeedbackSheet';
 import { send } from '@/lib/client/api';
+import { useLinerNote } from '@/lib/client/useLinerNote';
 import { updateSettings, useSettings } from '@/lib/client/settings';
 import { heard, hostTokens } from '@/lib/client/storage';
 import { useJoinUrl } from '@/lib/client/useJoinUrl';
@@ -106,6 +107,10 @@ export function HostScreen({ code }: { code: string }) {
         {announcing && view.round && <Chapter key={view.round.kind} kind={view.round.kind} />}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {view.pause && <Intermission key="pause" view={view} token={token} />}
+      </AnimatePresence>
+
       {director.needsClick && view.phase !== 'lobby' && view.phase !== 'finished' && (
         <div className={styles.soundGate}>
           <h2>The sound is off</h2>
@@ -128,6 +133,44 @@ function Stage({ children }: { children: React.ReactNode }) {
       transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
     >
       {children}
+    </motion.div>
+  );
+}
+
+/** Paused: the stage dims, the needle sits in the run-out groove, and there is something to read. */
+function Intermission({ view, token }: { view: RoomView; token: string }) {
+  const pause = view.pause!;
+  const { note, index } = useLinerNote(pause.at, pause.by);
+  return (
+    <motion.div
+      className={styles.intermission}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className={styles.pauseBars} aria-hidden>
+        <i />
+        <i />
+      </div>
+      <h1>Intermission</h1>
+      <p className={styles.pausedBy}>Paused by {pause.by}</p>
+      <div className={styles.linerNote}>
+        <AnimatePresence mode="wait">
+          <motion.p
+            key={index}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.45 }}
+          >
+            {note}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <Key variant="paper" onClick={() => void send(view.code, token, { type: 'resume' })}>
+        Resume
+      </Key>
     </motion.div>
   );
 }
@@ -163,7 +206,7 @@ function Header({ view }: { view: RoomView }) {
   const inGame = view.phase !== 'lobby';
   return (
     <header className={styles.header}>
-      <Wordmark className={styles.headerMark} />
+      <Wordmark className={styles.headerMark} href="/" />
 
       {inGame && view.round && (
         <ol className={styles.pips} aria-label={`Song ${view.round.index + 1} of ${view.round.total}`}>
@@ -193,7 +236,10 @@ function Header({ view }: { view: RoomView }) {
             </div>
           </div>
         )}
-        <SettingsMenu code={view.code} songTitle={view.round?.song?.title} />
+        {/* Not during play: nothing on the stage should invite a click mid-song. */}
+        {(view.phase === 'lobby' || view.phase === 'finished') && (
+          <SettingsMenu code={view.code} songTitle={view.round?.song?.title} />
+        )}
       </div>
     </header>
   );
@@ -337,8 +383,14 @@ function Lobby({ view, token, director }: { view: RoomView; token: string; direc
 
 // ---------------------------------------------------------------------------
 
-function Countdown({ endsAt, clockOffset }: { endsAt: number; clockOffset: number }) {
-  const now = useServerNow(clockOffset, true);
+interface TimerProps {
+  clockOffset: number;
+  /** Set while paused: the clock face stops here. */
+  frozenAt?: number | null;
+}
+
+function Countdown({ endsAt, clockOffset, frozenAt }: TimerProps & { endsAt: number }) {
+  const now = useServerNow(clockOffset, true, frozenAt);
   const seconds = Math.max(0, Math.ceil((endsAt - now) / 1000));
   return (
     <span className={styles.countdown} data-urgent={seconds <= 5}>
@@ -347,8 +399,8 @@ function Countdown({ endsAt, clockOffset }: { endsAt: number; clockOffset: numbe
   );
 }
 
-function TimerRing({ startedAt, clockOffset }: { startedAt: number; clockOffset: number }) {
-  const now = useServerNow(clockOffset, true);
+function TimerRing({ startedAt, clockOffset, frozenAt }: TimerProps & { startedAt: number }) {
+  const now = useServerNow(clockOffset, true, frozenAt);
   const progress = Math.min(Math.max((now - startedAt) / GUESS_MS, 0), 1);
   return (
     <svg className={styles.ring} viewBox="0 0 100 100" aria-hidden>
@@ -366,8 +418,8 @@ function TimerRing({ startedAt, clockOffset }: { startedAt: number; clockOffset:
   );
 }
 
-function RevealBar({ startedAt, clockOffset }: { startedAt: number; clockOffset: number }) {
-  const now = useServerNow(clockOffset, true);
+function RevealBar({ startedAt, clockOffset, frozenAt }: TimerProps & { startedAt: number }) {
+  const now = useServerNow(clockOffset, true, frozenAt);
   const left = Math.max(0, startedAt + REVEAL_MS - now);
   return (
     <div className={styles.revealBar}>
@@ -378,6 +430,13 @@ function RevealBar({ startedAt, clockOffset }: { startedAt: number; clockOffset:
     </div>
   );
 }
+
+const HEADING_FADE = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+  transition: { duration: 0.28 },
+};
 
 function answerNote(answer: RevealedAnswer | undefined, kind: string): string {
   if (!answer) return 'No answer';
@@ -419,8 +478,9 @@ function Game({
     <div className={styles.game}>
       <section className={styles.deck}>
         <div className={styles.prompt}>
+          <AnimatePresence mode="wait" initial={false}>
           {revealed ? (
-            <h1>
+            <motion.h1 key={`reveal-${round.index}`} {...HEADING_FADE}>
               {winnerName ? (
                 <>
                   <em>{winnerName}</em> {fastest ? 'got it first' : 'came closest'}
@@ -428,15 +488,16 @@ function Game({
               ) : (
                 'Nobody got it'
               )}
-            </h1>
+            </motion.h1>
           ) : (
-            <h1>
+            <motion.h1 key={`ask-${round.index}-${view.phase === 'loading'}`} {...HEADING_FADE}>
               {view.phase === 'loading' ? 'Get ready to name the ' : 'Name the '}
               <em>{info.noun}</em>
-            </h1>
+            </motion.h1>
           )}
+          </AnimatePresence>
           {view.phase === 'guessing' && round.guessStartedAt !== null && (
-            <Countdown endsAt={round.guessStartedAt + GUESS_MS} clockOffset={clockOffset} />
+            <Countdown endsAt={round.guessStartedAt + GUESS_MS} clockOffset={clockOffset} frozenAt={view.pause?.at} />
           )}
         </div>
 
@@ -455,19 +516,19 @@ function Game({
 
           <div className={styles.turntable}>
             <div className={styles.halo}>
-              <Halo jukebox={director.jukebox} active={view.phase !== 'loading'} />
+              <Halo jukebox={director.jukebox} active />
             </div>
             {view.phase === 'guessing' && round.guessStartedAt !== null && (
-              <TimerRing startedAt={round.guessStartedAt} clockOffset={clockOffset} />
+              <TimerRing startedAt={round.guessStartedAt} clockOffset={clockOffset} frozenAt={view.pause?.at} />
             )}
             <VinylRecord
-              spinning={view.phase !== 'loading'}
+              spinning={director.needleDown || Boolean(view.pause)}
               artworkUrl={song?.artworkUrl}
               className={styles.record}
             >
               <span className={styles.labelMark}>?</span>
             </VinylRecord>
-            <div className={styles.tonearm} data-down={view.phase !== 'loading'} aria-hidden>
+            <div className={styles.tonearm} data-down={director.needleDown || Boolean(view.pause)} aria-hidden>
               <i />
             </div>
           </div>
@@ -544,7 +605,7 @@ function Game({
           ))}
 
       {revealed && round.revealStartedAt !== null && (
-        <RevealBar startedAt={round.revealStartedAt} clockOffset={clockOffset} />
+        <RevealBar startedAt={round.revealStartedAt} clockOffset={clockOffset} frozenAt={view.pause?.at} />
       )}
     </div>
   );

@@ -43,12 +43,13 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
       gaveUp: inRound && Boolean(round.answers[p.id]?.gaveUp),
     })),
     round: roundView,
+    pause: state.pause ?? null,
     serverNow: now,
   };
 
   const lastRound = state.roundIndex === state.rounds.length - 1;
-  if (viewer.role === 'host' && revealed && lastRound && state.finale) {
-    view.finaleUrl = state.finale.previewUrl;
+  if (viewer.role === 'host' && revealed && lastRound && state.finales?.length) {
+    view.finaleUrls = state.finales.map((s) => s.previewUrl);
   }
 
   if (viewer.role === 'host' && state.phase === 'lobby' && state.lobbyUrl) {

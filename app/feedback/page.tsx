@@ -28,8 +28,8 @@ export default async function FeedbackBoard() {
 
       <h1 className={styles.title}>Feedback board</h1>
       <p className={styles.lead}>
-        Everything players have told us, and what became of it. Send yours from the game: the
-        “Feedback” link on your phone, or the gear on the big screen.
+        Everything players have told us, and what became of it. Send yours from the game: “Send
+        feedback” on your phone after each song, or the gear on the big screen.
         {items.length > 0 && ` ${open} open, ${items.length - open} closed.`}
       </p>
 
