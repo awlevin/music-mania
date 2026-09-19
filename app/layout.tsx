@@ -13,13 +13,46 @@ const strip = Barlow_Condensed({
 });
 const body = Barlow({ weight: ['400', '500', '600'], subsets: ['latin'], variable: '--font-body' });
 
+const SITE = 'https://music-mania-three.vercel.app';
+const PITCH = 'One screen plays the song. Everyone races to name it from their phone.';
+
 export const metadata: Metadata = {
-  title: 'Music Mania',
-  description: 'One screen plays the song. Everyone races to name it from their phone.',
+  metadataBase: new URL(SITE),
+  title: {
+    default: 'Music Mania — name that tune, with your friends',
+    template: '%s · Music Mania',
+  },
+  description: PITCH,
+  applicationName: 'Music Mania',
+  authors: [{ name: 'Aaron Levin', url: 'https://github.com/awlevin' }],
+  creator: 'Aaron Levin',
+  keywords: [
+    'name that tune',
+    'party game',
+    'music quiz',
+    'music trivia',
+    'guess the song',
+    'phone controller',
+    'living room game',
+  ],
+  openGraph: {
+    type: 'website',
+    siteName: 'Music Mania',
+    url: SITE,
+    title: 'Music Mania — name that tune, with your friends',
+    description: PITCH,
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Music Mania — name that tune, with your friends',
+    description: PITCH,
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: '#0e2f36',
+  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,

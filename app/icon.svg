@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Music Mania">
+  <title>Music Mania</title>
+  <defs>
+    <radialGradient id="disc" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2a2220" />
+      <stop offset="34%" stop-color="#2a2220" />
+      <stop offset="35%" stop-color="#14100f" />
+      <stop offset="100%" stop-color="#14100f" />
+    </radialGradient>
+  </defs>
+  <!-- The booth. -->
+  <rect width="64" height="64" rx="10" fill="#0e2f36" />
+  <!-- The record. -->
+  <circle cx="32" cy="32" r="26" fill="url(#disc)" />
+  <g fill="none" stroke="#fff3d6" stroke-opacity="0.12" stroke-width="1">
+    <circle cx="32" cy="32" r="23" />
+    <circle cx="32" cy="32" r="19.6" />
+    <circle cx="32" cy="32" r="16.2" />
+  </g>
+  <!-- The label, and the spindle hole through it. -->
+  <circle cx="32" cy="32" r="12.8" fill="#e9383f" />
+  <circle cx="32" cy="32" r="10" fill="none" stroke="#fff3d6" stroke-opacity="0.45" stroke-width="0.8" stroke-dasharray="1.6 1.9" />
+  <circle cx="32" cy="32" r="1.9" fill="#08222a" />
+</svg>

@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <img src="assets/brand/banner.png" alt="Music Mania" width="900">
+</p>
 
-## Getting Started
+<p align="center">
+  A party name-that-tune game: one big screen plays the song, everybody races to name it from their phone.
+</p>
 
-First, run the development server:
+<p align="center">
+  <a href="https://music-mania-three.vercel.app"><b>Play it → music-mania-three.vercel.app</b></a>
+</p>
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Open it on the television. Everyone else scans the code on the screen and
+plays from where they are sitting. Nothing to install, no accounts.
+
+<p align="center">
+  <img src="assets/screenshots/tv-lobby.png" alt="The television, waiting in the lobby: a QR code, a four-letter room code, and the players who have joined" width="900">
+</p>
+
+## How to play
+
+1. **Put one screen in front of everyone.** A laptop on the coffee table, or
+   mirrored to the TV. Press *Host a game*. The screen prints a QR code and a
+   four-letter room code, and it is the only thing that makes noise.
+2. **Everyone joins from their phone.** Scan, type a name, wait. Up to twelve
+   players. Whoever joined first runs the game and presses *Start* from their
+   phone when the room is full enough; after that anybody can push the room on
+   to the next song.
+3. **Fifteen seconds of a song play.** The record spins, the timer ring runs
+   down, and every phone asks one question. The first three rounds want the
+   **title**, then three want the **artist**, two want the **year**, and the
+   last two want the **album**.
+4. **Type it and lock it in.** A right answer is worth 1000 points at the
+   first second and 500 at the buzzer, so speed is most of the game. Matching
+   is forgiving: typos, a missing apostrophe, a dropped "The" and the
+   `feat.` credits are all fine. A year two out still pays a quarter.
+5. **The reveal.** The album sleeve slides out from behind the record, the
+   title strip flips in, and the round's points land on the scoreboard. Ten
+   rounds, then the final scores with a song to see them out.
+
+Nobody knows it? Hit **Give up** to tap out of the round. A white flag drops
+onto the television and a sad trombone plays.
+
+<p align="center">
+  <img src="assets/screenshots/tv-guessing.png" alt="The television during a round: a spinning record, a countdown, and who has locked in" width="900">
+  <img src="assets/screenshots/tv-reveal.png" alt="The television at the reveal: the album sleeve beside the record, the title strip, and the points this round" width="900">
+  <img src="assets/screenshots/phones.png" alt="Two phones: one typing an answer, one seeing the reveal" width="900">
+</p>
+
+## How it works
+
+Vercel gives no instance affinity: the phone's `POST` and the television's
+event stream almost never land on the same function. So no server holds the
+game in memory and no server runs a timer.
+
+The whole game is one pure function, `reduce(state, action, now)`. Phases end
+on deadlines carried in the state, not on `setTimeout`; any screen whose own
+clock says a deadline has passed may send `tick`, and the first one through
+moves the room on. Every write is a compare-and-set on the room's version
+number, so two phones answering at once cannot lose each other's answer.
+A successful write publishes the new state, and each open stream turns it
+into a `RoomView` built for that recipient — which is how the answer stays
+secret until the reveal.
+
+```
+         the television                          the phones
+     ┌──────────────────────┐            ┌──────────────────────┐
+     │ /host/DZEB           │            │ /play/DZEB           │
+     │ plays the audio      │            │ types the answer     │
+     └──────────┬───────────┘            └──────────┬───────────┘
+        GET /events (SSE)                    POST /actions
+                └──────────────┬──────────────────┘
+                               ▼
+     ┌───────────────────────────────────────────────────────────┐
+     │  route handlers, stateless      reduce(state, action, now) │
+     └───────────────────────────────┬───────────────────────────┘
+                compare-and-set on state.version
+                                     ▼
+              Redis ──── publish ────▶ every open event stream
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without `REDIS_URL` the store is a map in the dev server's process, which
+behaves the same on one machine. The music is iTunes' 30-second previews,
+played through the Web Audio API so the halo around the record can be drawn
+from the live spectrum. The 200-song catalog lives in `data/catalog.json`;
+`scripts/build-catalog.mjs` resolves it from a seed list and the iTunes Search
+API, and one batch lookup per game refreshes preview URLs that Apple has
+moved.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Run it locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Open http://localhost:3000 and press *Host a game*. No Redis needed: the dev
+server keeps rooms in memory.
 
-To learn more about Next.js, take a look at the following resources:
+Phones join over your LAN. The host screen notices it is on `localhost`,
+asks the dev server for this machine's LAN address and prints *that* in the
+QR code, so a phone on the same Wi-Fi can open it. Both devices have to be on
+the same network.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tests
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test        # vitest: the reducer, scoring and answer matching
+npm run lint
+npm run typecheck
+```
 
-## Deploy on Vercel
+`npm run e2e` plays a whole ten-round game in real browsers — one host and
+three iPhones — and fails on any console error. It talks to `BASE_URL`,
+`http://localhost:3210` by default, so start the dev server on that port
+first:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev -- -p 3210
+npm run e2e
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Screenshots land in `e2e/shots/`, which is where the pictures in this README
+come from.
+
+## Deploy it
+
+It is a stock Next.js app; Vercel needs no configuration beyond one
+environment variable:
+
+| Variable    | What                                                          |
+| ----------- | ------------------------------------------------------------- |
+| `REDIS_URL` | An [Upstash](https://upstash.com) Redis connection string. |
+
+Add Upstash from the Vercel marketplace and the variable arrives on its own
+(`KV_URL` works too). Rooms expire six hours after their last write. On
+Vercel a missing variable throws rather than falling back to the in-memory
+store, which is deliberate: that store would quietly split a room across
+instances.
+
+## Feedback
+
+Every phone carries a *Send feedback* link, and the reveal has a shortcut for
+"something is off with this song" that attaches the song in question. Each
+report gets a public id like `FB-12` and a status, and anyone can read the
+queue at [/feedback](https://music-mania-three.vercel.app/feedback) to see
+what was fixed, what was declined, and why.
+
+## Credits
+
+Song previews and album artwork are fetched from
+[Apple's iTunes Search API](https://performance-partners.apple.com/search-api)
+and belong to their owners. This project is not affiliated with Apple, with
+any label, or with any artist. It plays thirty-second previews Apple publishes
+for exactly this kind of use, and stores none of them.
+
+Set in [Shrikhand](https://fonts.google.com/specimen/Shrikhand) and
+[Barlow](https://fonts.google.com/specimen/Barlow), both under the SIL Open
+Font License.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
