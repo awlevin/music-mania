@@ -69,8 +69,12 @@ export function chooseSongs(
   return [...picked, ...leftovers].slice(0, count);
 }
 
-/** Songs for one game and the finale, with preview URLs fetched fresh from iTunes. */
-export async function pickSongs(
+/**
+ * Songs for one game and the finale, exactly as a room draws them, but with
+ * the preview URLs still as stored. The shuffle preview page uses this to
+ * show what a game would have played without a trip to iTunes.
+ */
+export async function drawSongs(
   count: number,
   excludeIds: readonly number[],
   lastFinaleId?: number,
@@ -78,10 +82,19 @@ export async function pickSongs(
   // Songs someone has reported sit out until the report is closed.
   const benched = new Set(await benchedSongIds().catch(() => []));
   const playable = SONGS.filter((s) => !benched.has(s.id));
-  const chosen = chooseSongs(count, excludeIds, Math.random, playable);
-  const finales = chooseFinales(chosen, lastFinaleId);
-  const fresh = await refreshPreviews([...chosen, ...finales]);
-  return { songs: fresh.slice(0, chosen.length), finales: fresh.slice(chosen.length) };
+  const songs = chooseSongs(count, excludeIds, Math.random, playable);
+  return { songs, finales: chooseFinales(songs, lastFinaleId) };
+}
+
+/** Songs for one game and the finale, with preview URLs fetched fresh from iTunes. */
+export async function pickSongs(
+  count: number,
+  excludeIds: readonly number[],
+  lastFinaleId?: number,
+): Promise<{ songs: Song[]; finales: Song[] }> {
+  const { songs, finales } = await drawSongs(count, excludeIds, lastFinaleId);
+  const fresh = await refreshPreviews([...songs, ...finales]);
+  return { songs: fresh.slice(0, songs.length), finales: fresh.slice(songs.length) };
 }
 
 /** "Feel It Still", for the lobby, with a fresh preview URL. */

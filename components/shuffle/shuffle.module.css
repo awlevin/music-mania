@@ -1,0 +1,303 @@
+.page {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.25rem 5rem;
+}
+
+.top {
+  min-height: 4rem;
+}
+
+.mark {
+  font-size: 1.6rem;
+}
+
+.title {
+  margin-top: 1rem;
+  font-family: var(--font-display), cursive;
+  font-size: clamp(2.4rem, 8vw, 3.6rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.lead {
+  max-width: 44rem;
+  margin: 1rem 0 1.5rem;
+  font-size: 1.1rem;
+  color: var(--chrome);
+  text-wrap: pretty;
+}
+
+/* --- Controls ----------------------------------------------------------- */
+
+.controls {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin: 0 -1.25rem;
+  padding: 0.75rem 1.25rem;
+  background: color-mix(in srgb, var(--booth) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.counter strong {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.counter small {
+  font-size: 0.85rem;
+  color: var(--chrome);
+}
+
+.counter kbd {
+  padding: 0 0.35em;
+  border-radius: 0.3em;
+  background: var(--booth-lift);
+  font-family: inherit;
+  font-size: 0.9em;
+  text-transform: uppercase;
+}
+
+.error {
+  flex-basis: 100%;
+  color: var(--cherry);
+  font-weight: 600;
+}
+
+.error[data-error='false'] {
+  display: none;
+}
+
+/* --- At a glance -------------------------------------------------------- */
+
+.spread {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  margin: 1rem 0 1.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--booth-line);
+  border-radius: var(--radius-strip);
+  font-size: 0.95rem;
+}
+
+.spreadLabel {
+  font-family: var(--font-strip), sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.tally b {
+  color: var(--butter);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Groups ------------------------------------------------------------- */
+
+.draw {
+  display: grid;
+  gap: 2rem;
+  transition: opacity 200ms;
+}
+
+.draw[data-busy='true'] {
+  opacity: 0.55;
+}
+
+.groupTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.9rem;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-strip), sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.groupKind {
+  padding: 0.1em 0.75em;
+  border-radius: 99em;
+  background: var(--tone);
+  color: var(--tone-ink);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* Sections with no question: spares and the finale. */
+.group:not([data-tone]) .groupKind {
+  background: var(--booth-lift);
+  color: var(--chrome);
+}
+
+.groupRange {
+  font-size: 1rem;
+  color: var(--chrome);
+}
+
+.encores {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--chrome);
+}
+
+/* --- Cards -------------------------------------------------------------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 2.4rem 5.5rem 1fr;
+  align-items: stretch;
+  min-height: 5.5rem;
+  border-radius: var(--radius-strip);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  box-shadow: 0 0.25rem 0.7rem rgb(0 0 0 / 0.28);
+  animation: deal 420ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 35ms);
+}
+
+@keyframes deal {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem);
+  }
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  background: var(--tone, var(--booth-lift));
+  color: var(--tone-ink, var(--paper));
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.card:not([data-tone]) .tab {
+  background: var(--booth-lift);
+  color: var(--chrome);
+}
+
+.art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--paper-shade);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--font-strip), sans-serif;
+  line-height: 1.15;
+}
+
+/* Every word shows: this page exists to read the songs, so nothing is cut short. */
+.line {
+  display: inline;
+  padding: 0 0.2em;
+  margin: 0 -0.2em;
+  border-radius: 0.25em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.line[data-kind='title'] {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.line[data-kind='artist'] {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* Flex items sit at their own width, so a highlight hugs the words. */
+.body > .line {
+  align-self: start;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.body > .line[data-asked='true'] {
+  margin: 0 -0.2em;
+  padding: 0 0.2em;
+}
+
+.small {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+.dot {
+  padding: 0 0.35em;
+}
+
+.line[data-asked='true'] {
+  background: color-mix(in srgb, var(--tone) 32%, var(--paper));
+  color: var(--ink);
+  box-shadow: inset 0 -0.12em 0 var(--tone);
+}
+
+.genre {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  opacity: 0.8;
+}
+
+@media (max-width: 26rem) {
+  .card {
+    grid-template-columns: 2rem 4.5rem 1fr;
+  }
+}
