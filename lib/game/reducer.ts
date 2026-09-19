@@ -18,7 +18,12 @@ import {
 import { grade } from './score';
 import type { Action, ReduceResult, RoomState, Round, Song } from './types';
 
-export function createRoom(code: string, hostToken: string, now: number): RoomState {
+export function createRoom(
+  code: string,
+  hostToken: string,
+  now: number,
+  lobbyUrl: string | null = null,
+): RoomState {
   return {
     code,
     version: 1,
@@ -29,6 +34,7 @@ export function createRoom(code: string, hostToken: string, now: number): RoomSt
     roundIndex: 0,
     spares: [],
     finale: null,
+    lobbyUrl,
     playedSongIds: [],
     createdAt: now,
   };

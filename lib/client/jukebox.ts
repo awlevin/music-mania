@@ -106,11 +106,11 @@ export class Jukebox {
   }
 
   /** Start from `offsetSeconds`. Resolves when sound is actually coming out. */
-  async play(offsetSeconds = 0, loop = false): Promise<void> {
+  async play(offsetSeconds = 0, loop = false, volume = 1): Promise<void> {
     this.audio.loop = loop;
     if (this.gain && this.context) {
       this.gain.gain.cancelScheduledValues(this.context.currentTime);
-      this.gain.gain.setValueAtTime(1, this.context.currentTime);
+      this.gain.gain.setValueAtTime(volume, this.context.currentTime);
     }
     if (offsetSeconds > 0) this.audio.currentTime = offsetSeconds;
     await this.audio.play();

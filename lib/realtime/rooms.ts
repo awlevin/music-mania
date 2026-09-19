@@ -1,5 +1,6 @@
 import { randomBytes, randomInt } from 'node:crypto';
 
+import { lobbySong } from '@/lib/catalog';
 import { createRoom, reduce } from '@/lib/game/reducer';
 import type { Action, RoomState } from '@/lib/game/types';
 import type { Viewer } from '@/lib/game/views';
@@ -31,8 +32,9 @@ export function normalizeCode(raw: string): string {
 
 export async function openRoom(): Promise<RoomState> {
   const store = getStore();
+  const lobby = await lobbySong();
   for (let attempt = 0; attempt < 20; attempt++) {
-    const state = createRoom(newCode(), newToken(), Date.now());
+    const state = createRoom(newCode(), newToken(), Date.now(), lobby.previewUrl);
     if (await store.create(state)) return state;
   }
   throw new Error('Could not find a free room code.');

@@ -61,6 +61,8 @@ export interface RoomState {
   spares: Song[];
   /** What the host plays over the final scores. */
   finale: Song | null;
+  /** What the host plays while people join. */
+  lobbyUrl: string | null;
   /** Every song this room has heard, so "play again" never repeats one. */
   playedSongIds: number[];
   createdAt: number;
@@ -122,6 +124,8 @@ export interface RoomView {
   round: RoundView | null;
   /** Host only, from the last reveal on: the song for the final scores. */
   finaleUrl?: string;
+  /** Host only, in the lobby: music to join by. */
+  lobbyUrl?: string;
   /** Players only. */
   you?: {
     id: string;

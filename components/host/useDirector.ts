@@ -39,6 +39,7 @@ export function useDirector(
   token: string | null,
   view: RoomView | null,
   clockOffset: number,
+  lobbyMusic: boolean,
 ): Director {
   const [jukebox] = useState(() => (typeof window === 'undefined' ? null : getJukebox()));
   /** Whether the browser currently lets this page make sound. */
@@ -60,14 +61,27 @@ export function useDirector(
   const nextPreviewUrl = view?.round?.nextPreviewUrl;
   const guessStartedAt = view?.round?.guessStartedAt ?? null;
   const finaleUrl = view?.finaleUrl;
+  const lobbyUrl = view?.lobbyUrl;
   const introMs = view?.round?.kindChanged ? ANNOUNCE_MS : INTRO_MS;
 
   useEffect(() => {
     if (!jukebox || !token || phase === undefined || !unlocked) return;
 
     if (phase === 'lobby') {
-      cued.current = '';
-      void jukebox.fadeOut();
+      // Background music while people join, quieter than the game itself.
+      const key = lobbyMusic && lobbyUrl ? `lobby:${lobbyUrl}` : '';
+      if (cued.current === key) return;
+      cued.current = key;
+      void (async () => {
+        await jukebox.fadeOut();
+        if (!key || cued.current !== key) return;
+        try {
+          await jukebox.load(lobbyUrl!);
+          if (cued.current === key) await jukebox.play(0, true, 0.45);
+        } catch {
+          // A silent lobby is still a lobby.
+        }
+      })();
       return;
     }
     if (phase === 'finished') {
@@ -126,7 +140,7 @@ export function useDirector(
     })();
     // guessStartedAt, clockOffset and introMs are read once, when the round is cued.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jukebox, token, code, phase, roundIndex, previewUrl, nextPreviewUrl, finaleUrl, unlocked]);
+  }, [jukebox, token, code, phase, roundIndex, previewUrl, nextPreviewUrl, finaleUrl, lobbyUrl, lobbyMusic, unlocked]);
 
   return { jukebox, needsClick: phase !== undefined && !unlocked, enableSound };
 }

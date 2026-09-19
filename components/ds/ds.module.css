@@ -411,3 +411,85 @@
   background: var(--booth-deep);
   box-shadow: 0 0 0 0.1em rgb(0 0 0 / 0.5);
 }
+
+/* --- Icon button --------------------------------------------------------- */
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 2.6em;
+  height: 2.6em;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--booth-lift);
+  color: var(--chrome);
+  font-size: 1.15em;
+  cursor: pointer;
+  transition:
+    color 150ms,
+    transform 300ms var(--ease-spring);
+}
+
+.iconButton:hover,
+.iconButton[aria-expanded='true'] {
+  color: var(--paper);
+  transform: rotate(45deg);
+}
+
+/* --- Switch -------------------------------------------------------------- */
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5em;
+  width: 100%;
+  padding: 0.5em 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.switchText {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.switchText small {
+  font-size: 0.82em;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.switchTrack {
+  flex: none;
+  width: 3em;
+  height: 1.7em;
+  padding: 0.2em;
+  border-radius: 99em;
+  background: var(--paper-shade);
+  transition: background 200ms;
+}
+
+.switchTrack i {
+  display: block;
+  width: 1.3em;
+  height: 1.3em;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 0.1em 0.25em rgb(0 0 0 / 0.35);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.switch[aria-checked='true'] .switchTrack {
+  background: var(--cherry);
+}
+
+.switch[aria-checked='true'] .switchTrack i {
+  transform: translateX(1.3em);
+}

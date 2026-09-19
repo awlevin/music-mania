@@ -51,6 +51,10 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
     view.finaleUrl = state.finale.previewUrl;
   }
 
+  if (viewer.role === 'host' && state.phase === 'lobby' && state.lobbyUrl) {
+    view.lobbyUrl = state.lobbyUrl;
+  }
+
   if (viewer.role === 'player') {
     const mine = inRound ? round.answers[viewer.playerId] : undefined;
     view.you = {

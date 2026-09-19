@@ -5,6 +5,7 @@
 
 import catalog from '@/data/catalog.json';
 import finales from '@/data/finales.json';
+import lobby from '@/data/lobby.json';
 import type { Song } from '@/lib/game/types';
 
 import { refreshPreviews } from './itunes';
@@ -76,6 +77,11 @@ export async function pickSongs(
   const finale = chooseFinale(chosen, lastFinaleId);
   const fresh = await refreshPreviews(finale ? [...chosen, finale] : chosen);
   return { songs: fresh.slice(0, chosen.length), finale: finale ? fresh[fresh.length - 1] : null };
+}
+
+/** "Feel It Still", for the lobby, with a fresh preview URL. */
+export async function lobbySong(): Promise<Song> {
+  return (await refreshPreviews([lobby as Song]))[0];
 }
 
 /** A finale this game did not ask about and the last game did not end on. */

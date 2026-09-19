@@ -4,8 +4,18 @@ import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 
-import { Key, PlayerChip, TitleStrip, VinylRecord, Wordmark } from '@/components/ds';
+import {
+  GearIcon,
+  IconButton,
+  Key,
+  PlayerChip,
+  Switch,
+  TitleStrip,
+  VinylRecord,
+  Wordmark,
+} from '@/components/ds';
 import { send } from '@/lib/client/api';
+import { updateSettings, useSettings } from '@/lib/client/settings';
 import { hostTokens } from '@/lib/client/storage';
 import { useJoinUrl } from '@/lib/client/useJoinUrl';
 import { useServerNow } from '@/lib/client/useNow';
@@ -32,7 +42,8 @@ export function HostScreen({ code }: { code: string }) {
     () => undefined,
   );
   const { view, status, clockOffset } = useRoom(code, token ?? null, 0);
-  const director = useDirector(code, token ?? null, view, clockOffset);
+  const settings = useSettings();
+  const director = useDirector(code, token ?? null, view, clockOffset, settings.lobbyMusic);
 
   if (token === null || status === 'closed') {
     return (
@@ -165,16 +176,46 @@ function Header({ view }: { view: RoomView }) {
         </ol>
       )}
 
-      {inGame && join && (
-        <div className={styles.joinTag}>
-          <QrCode url={join.url} className={styles.joinTagQr} />
-          <div>
-            <span>Join at {join.display}</span>
-            <strong>{view.code}</strong>
+      <div className={styles.headerEnd}>
+        {inGame && join && (
+          <div className={styles.joinTag}>
+            <QrCode url={join.url} className={styles.joinTagQr} />
+            <div>
+              <span>Join at {join.display}</span>
+              <strong>{view.code}</strong>
+            </div>
           </div>
+        )}
+        <SettingsMenu />
+      </div>
+    </header>
+  );
+}
+
+function SettingsMenu() {
+  const settings = useSettings();
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className={styles.settings}
+      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}
+      onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}
+    >
+      <IconButton label="Settings" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <GearIcon />
+      </IconButton>
+      {open && (
+        <div className={styles.settingsPanel} role="dialog" aria-label="Settings">
+          <h2>Settings</h2>
+          <Switch
+            label="Lobby music"
+            hint="Plays on this screen while people join."
+            checked={settings.lobbyMusic}
+            onChange={(lobbyMusic) => updateSettings({ lobbyMusic })}
+          />
         </div>
       )}
-    </header>
+    </div>
   );
 }
 
