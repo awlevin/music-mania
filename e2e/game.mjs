@@ -2,7 +2,7 @@
 //   node e2e/game.mjs            (expects the app on BASE_URL, default :3210)
 // Screenshots land in e2e/shots/.
 
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 
 import { chromium, devices } from 'playwright';
 
@@ -11,6 +11,10 @@ const ROUNDS = Number(process.env.ROUNDS ?? 10);
 const NAMES = ['Ana', 'Benedict', 'Chidi'];
 const SHOTS = new URL('./shots/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
+
+// The test knows what no player can: which song a preview URL belongs to.
+const catalog = JSON.parse(readFileSync(new URL('../data/catalog.json', import.meta.url), 'utf8'));
+const KIND_FIELD = { song: 'title', artist: 'artist', year: 'year', album: 'album' };
 
 const browser = await chromium.launch({
   args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
@@ -24,6 +28,13 @@ const watch = (page, who) => {
 const hostCtx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
 const host = await hostCtx.newPage();
 watch(host, 'host');
+let nowPlaying = null;
+host.on('request', (r) => {
+  if (!/\.(m4a|mp3)(\?|$)/.test(r.url())) return;
+  // The id in the path survives Apple re-signing the rest of the URL.
+  const id = r.url().split('/').pop();
+  nowPlaying = catalog.find((s) => s.previewUrl.split('/').pop() === id) ?? nowPlaying;
+});
 await host.goto(BASE);
 // Playwright hides carets by styling inputs; do that after hydration, not during it.
 await host.waitForLoadState('networkidle');
@@ -75,11 +86,17 @@ for (let round = 0; round < ROUNDS; round++) {
   }
 
   const year = await phones[0].page.getByPlaceholder(/Year/).count();
+  const noun = (await phones[0].page.locator('h1 em').textContent()).trim();
+  const right = nowPlaying ? String(nowPlaying[KIND_FIELD[noun]]) : null;
   // Ana answers; Benedict answers on even rounds; Chidi never does, except
   // in round two, where everyone answers and the reveal must come early.
   const answering = round === 1 ? phones : round % 2 === 0 ? phones.slice(0, 2) : phones.slice(0, 1);
-  for (const { page } of answering) {
-    await page.getByRole('textbox').fill(year ? '1999' : 'a wild guess');
+  for (const { name, page } of answering) {
+    // Ana knows her music. Benedict is a year out. Chidi guesses.
+    let text = year ? '1999' : 'a wild guess';
+    if (right && name === 'Ana') text = right;
+    if (right && year && name === 'Benedict') text = String(Number(right) + 1);
+    await page.getByRole('textbox').fill(text);
     await page.getByRole('button', { name: 'Lock it in' }).click();
   }
   if (round === 0) {
@@ -118,6 +135,9 @@ await host.screenshot({ path: `${SHOTS}13-host-finished.png` });
 await phones[0].page.screenshot({ path: `${SHOTS}14-phone-finished.png` });
 await phones[2].page.screenshot({ path: `${SHOTS}14-phone-finished-last.png` });
 
+const anaScore = await phones[0].page.locator('[class*=me] strong').textContent();
+console.log('Ana finished on', anaScore);
+if (nowPlaying && Number(anaScore.replace(/,/g, '')) < 5000) problems.push(`Ana knew every song but scored ${anaScore}`);
 await browser.close();
 if (problems.length) {
   console.error('PROBLEMS:\n' + [...new Set(problems)].join('\n'));

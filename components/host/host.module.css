@@ -117,8 +117,12 @@
   color: var(--chrome);
 }
 
-.board {
+.game .board {
   grid-row: 1 / -1;
+  grid-column: 2;
+}
+
+.board {
   display: flex;
   flex-direction: column;
   gap: 0.9em;
