@@ -31,6 +31,24 @@
   color: var(--chrome);
 }
 
+.foot {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.75rem;
+}
+
+.footLink {
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: none;
+  color: var(--chrome);
+  font-size: 0.95rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
 .me {
   display: flex;
   align-items: baseline;

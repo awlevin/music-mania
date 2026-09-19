@@ -13,6 +13,7 @@ import { EventEmitter } from 'node:events';
 import Redis from 'ioredis';
 
 import type { RoomState } from '@/lib/game/types';
+import { getRedis, redisUrl } from '@/lib/redis';
 
 export type Listener = (state: RoomState) => void;
 
@@ -91,11 +92,9 @@ class RedisStore implements RoomStore {
   private subscriber: Redis;
   private listeners = new Map<string, Set<Listener>>();
 
-  constructor(url: string) {
-    const options = { maxRetriesPerRequest: 2, enableReadyCheck: false };
-    this.commands = new Redis(url, options);
-    this.subscriber = new Redis(url, { ...options, maxRetriesPerRequest: null });
-    this.commands.on('error', (err) => console.error('[redis] commands:', err.message));
+  constructor(commands: Redis, url: string) {
+    this.commands = commands;
+    this.subscriber = new Redis(url, { enableReadyCheck: false, maxRetriesPerRequest: null });
     this.subscriber.on('error', (err) => console.error('[redis] subscriber:', err.message));
     this.subscriber.on('message', (ch: string, message: string) => {
       const set = this.listeners.get(ch);
@@ -160,11 +159,8 @@ const holder = globalThis as typeof globalThis & { __musicManiaStore?: RoomStore
 
 export function getStore(): RoomStore {
   if (!holder.__musicManiaStore) {
-    const url = process.env.REDIS_URL ?? process.env.KV_URL;
-    if (!url && process.env.VERCEL) {
-      throw new Error('REDIS_URL is not set. Rooms cannot be shared between function instances.');
-    }
-    holder.__musicManiaStore = url ? new RedisStore(url) : new MemoryStore();
+    const redis = getRedis();
+    holder.__musicManiaStore = redis ? new RedisStore(redis, redisUrl()!) : new MemoryStore();
   }
   return holder.__musicManiaStore;
 }

@@ -6,7 +6,7 @@ import { type FormEvent, useState } from 'react';
 import { Field, Key, VinylRecord, Wordmark } from '@/components/ds';
 import { createRoom } from '@/lib/client/api';
 import { getJukebox } from '@/lib/client/jukebox';
-import { hostTokens } from '@/lib/client/storage';
+import { heard, hostTokens } from '@/lib/client/storage';
 
 import styles from './landing.module.css';
 
@@ -22,7 +22,7 @@ export function Landing() {
     // This click is the one that lets the host screen play sound later, even
     // when the game is started from a phone.
     void getJukebox().unlock().catch(() => {});
-    const result = await createRoom();
+    const result = await createRoom(heard.get());
     if (!result.ok) {
       setError(result.error);
       setOpening(false);

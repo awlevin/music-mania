@@ -262,6 +262,12 @@ describe('catalog', () => {
     }
   });
 
+  it('repeats the songs heard longest ago first, once everything has been heard', () => {
+    const songs = Array.from({ length: 6 }, (_, i) => song(i + 1));
+    const picked = chooseSongs(2, [4, 2, 6, 1, 5, 3], Math.random, songs);
+    expect(picked.map((s) => s.id)).toEqual([4, 2]);
+  });
+
   it('falls back to repeats rather than coming up short', () => {
     const songs = Array.from({ length: 6 }, (_, i) => song(i + 1, { artist: 'Same' }));
     expect(chooseSongs(5, [1, 2], Math.random, songs)).toHaveLength(5);

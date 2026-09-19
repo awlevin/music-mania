@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import {
   GearIcon,
@@ -14,9 +14,10 @@ import {
   VinylRecord,
   Wordmark,
 } from '@/components/ds';
+import { FeedbackSheet } from '@/components/feedback/FeedbackSheet';
 import { send } from '@/lib/client/api';
 import { updateSettings, useSettings } from '@/lib/client/settings';
-import { hostTokens } from '@/lib/client/storage';
+import { heard, hostTokens } from '@/lib/client/storage';
 import { useJoinUrl } from '@/lib/client/useJoinUrl';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
@@ -44,6 +45,12 @@ export function HostScreen({ code }: { code: string }) {
   const { view, status, clockOffset } = useRoom(code, token ?? null, 0);
   const settings = useSettings();
   const director = useDirector(code, token ?? null, view, clockOffset, settings.lobbyMusic);
+
+  // Remember every song this screen reveals, so later rooms skip it.
+  const revealedSongId = view?.round?.song?.id;
+  useEffect(() => {
+    if (revealedSongId) heard.add(revealedSongId);
+  }, [revealedSongId]);
 
   if (token === null || status === 'closed') {
     return (
@@ -186,15 +193,21 @@ function Header({ view }: { view: RoomView }) {
             </div>
           </div>
         )}
-        <SettingsMenu />
+        <SettingsMenu code={view.code} songTitle={view.round?.song?.title} />
       </div>
     </header>
   );
 }
 
-function SettingsMenu() {
+function SettingsMenu({ code, songTitle }: { code: string; songTitle?: string }) {
   const settings = useSettings();
   const [open, setOpen] = useState(false);
+  const [feedback, setFeedback] = useState(false);
+  const token = useSyncExternalStore(
+    noStore,
+    () => hostTokens.get(code),
+    () => null,
+  );
   return (
     <div
       className={styles.settings}
@@ -213,7 +226,20 @@ function SettingsMenu() {
             checked={settings.lobbyMusic}
             onChange={(lobbyMusic) => updateSettings({ lobbyMusic })}
           />
+          <button
+            type="button"
+            className={styles.settingsLink}
+            onClick={() => {
+              setOpen(false);
+              setFeedback(true);
+            }}
+          >
+            Send feedback
+          </button>
         </div>
+      )}
+      {feedback && (
+        <FeedbackSheet code={code} token={token} songTitle={songTitle} onClose={() => setFeedback(false)} />
       )}
     </div>
   );

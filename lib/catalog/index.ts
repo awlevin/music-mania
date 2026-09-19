@@ -6,6 +6,7 @@
 import catalog from '@/data/catalog.json';
 import finales from '@/data/finales.json';
 import lobby from '@/data/lobby.json';
+import { benchedSongIds } from '@/lib/feedback/store';
 import type { Song } from '@/lib/game/types';
 
 import { refreshPreviews } from './itunes';
@@ -32,8 +33,9 @@ function shuffle<T>(items: readonly T[], random: () => number): T[] {
 }
 
 /**
- * `count` songs this room has not heard, no artist twice. Falls back to
- * repeats only when the catalog cannot do better.
+ * `count` songs this room has not heard, no artist twice. Only when the
+ * catalog runs dry does it repeat, and then the songs heard longest ago come
+ * first. `excludeIds` is oldest first.
  */
 export function chooseSongs(
   count: number,
@@ -46,10 +48,10 @@ export function chooseSongs(
     songs.filter((s) => !exclude.has(s.id)),
     random,
   );
-  const heard = shuffle(
-    songs.filter((s) => exclude.has(s.id)),
-    random,
-  );
+  const lastHeard = new Map(excludeIds.map((id, i) => [id, i]));
+  const heard = songs
+    .filter((s) => exclude.has(s.id))
+    .sort((a, b) => lastHeard.get(a.id)! - lastHeard.get(b.id)!);
 
   const picked: Song[] = [];
   const artists = new Set<string>();
@@ -73,7 +75,10 @@ export async function pickSongs(
   excludeIds: readonly number[],
   lastFinaleId?: number,
 ): Promise<{ songs: Song[]; finale: Song | null }> {
-  const chosen = chooseSongs(count, excludeIds);
+  // Songs someone has reported sit out until the report is closed.
+  const benched = new Set(await benchedSongIds().catch(() => []));
+  const playable = SONGS.filter((s) => !benched.has(s.id));
+  const chosen = chooseSongs(count, excludeIds, Math.random, playable);
   const finale = chooseFinale(chosen, lastFinaleId);
   const fresh = await refreshPreviews(finale ? [...chosen, finale] : chosen);
   return { songs: fresh.slice(0, chosen.length), finale: finale ? fresh[fresh.length - 1] : null };

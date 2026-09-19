@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import { Field, Key, PlayerChip, TitleStrip, Wordmark } from '@/components/ds';
+import { FeedbackSheet } from '@/components/feedback/FeedbackSheet';
 import { send } from '@/lib/client/api';
 import { lastName, seats } from '@/lib/client/storage';
 import { useServerNow } from '@/lib/client/useNow';
@@ -62,7 +63,17 @@ export function PlayScreen({ code }: { code: string }) {
 
 // ---------------------------------------------------------------------------
 
-function Shell({ code, children, tone }: { code: string; children: React.ReactNode; tone?: string }) {
+interface ShellProps {
+  code: string;
+  children: React.ReactNode;
+  tone?: string;
+  token?: string;
+  /** Title of the song on screen, once revealed: feedback can be about it. */
+  songTitle?: string;
+}
+
+function Shell({ code, children, tone, token, songTitle }: ShellProps) {
+  const [feedback, setFeedback] = useState(false);
   return (
     <main className={styles.page} data-tone={tone}>
       <header className={styles.top}>
@@ -70,6 +81,14 @@ function Shell({ code, children, tone }: { code: string; children: React.ReactNo
         <span className={styles.topCode}>Room {code}</span>
       </header>
       {children}
+      <footer className={styles.foot}>
+        <button type="button" className={styles.footLink} onClick={() => setFeedback(true)}>
+          {songTitle ? 'Something off with this song? Tell us' : 'Send feedback'}
+        </button>
+      </footer>
+      {feedback && (
+        <FeedbackSheet code={code} token={token} songTitle={songTitle} onClose={() => setFeedback(false)} />
+      )}
     </main>
   );
 }
@@ -192,7 +211,7 @@ function Room({
 
   const me = view.players.find((p) => p.id === view.you!.id);
   return (
-    <Shell code={code} tone={view.round?.kind}>
+    <Shell code={code} tone={view.round?.kind} token={token} songTitle={view.round?.song?.title}>
       {me && view.phase !== 'lobby' && (
         <div className={styles.me}>
           <span>{me.name}</span>

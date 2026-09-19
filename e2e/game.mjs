@@ -135,6 +135,24 @@ for (let round = 0; round < ROUNDS; round++) {
     await phones[2].page.screenshot({ path: `${SHOTS}12-phone-reveal-${round + 1}-noanswer.png` });
   }
 
+  if (round === 1) {
+    // Chidi thinks the album is wrong, and says so from his phone.
+    const chidi = phones[2].page;
+    await chidi.getByRole('button', { name: /Something off with this song/ }).click();
+    await chidi.getByRole('button', { name: 'Wrong album' }).click();
+    await chidi.getByLabel('Your feedback').fill('It was on the debut, not this one.');
+    await chidi.screenshot({ path: `${SHOTS}15-phone-feedback.png` });
+    await chidi.getByRole('button', { name: 'Send feedback' }).click();
+    await chidi.getByText(/Got it. That is FB-\d+/).waitFor();
+    await chidi.screenshot({ path: `${SHOTS}16-phone-feedback-sent.png` });
+    await chidi.getByRole('button', { name: 'Back to the game' }).click();
+    const board = await hostCtx.newPage();
+    await board.goto(`${BASE}/feedback`);
+    await board.getByText('It was on the debut, not this one.').first().waitFor();
+    await board.screenshot({ path: `${SHOTS}17-feedback-board.png` });
+    await board.close();
+  }
+
   // Round one runs the reveal out; afterwards a phone skips ahead.
   if (round > 0) {
     await phones[round % 3].page.getByRole('button', { name: /Next song|See final scores/ }).click();

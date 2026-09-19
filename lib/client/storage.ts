@@ -35,6 +35,20 @@ export const seats = {
   clear: (code: string) => remove(`mm:seat:${code}`),
 };
 
+/**
+ * Songs this screen has played, oldest first, across every room it has
+ * hosted. A new room starts from this list, so Friday's songs stay away on
+ * Saturday.
+ */
+const HEARD_LIMIT = 600;
+export const heard = {
+  get: () => read<number[]>('mm:heard') ?? [],
+  add: (id: number) => {
+    const ids = (read<number[]>('mm:heard') ?? []).filter((x) => x !== id);
+    write('mm:heard', [...ids, id].slice(-HEARD_LIMIT));
+  },
+};
+
 export const lastName = {
   get: () => read<string>('mm:name') ?? '',
   set: (name: string) => write('mm:name', name),

@@ -30,11 +30,15 @@ export function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, CODE_LENGTH);
 }
 
-export async function openRoom(): Promise<RoomState> {
+/** `heard`: songs the hosting screen has played before, oldest first. */
+export async function openRoom(heard: number[] = []): Promise<RoomState> {
   const store = getStore();
   const lobby = await lobbySong();
   for (let attempt = 0; attempt < 20; attempt++) {
-    const state = createRoom(newCode(), newToken(), Date.now(), lobby.previewUrl);
+    const state = {
+      ...createRoom(newCode(), newToken(), Date.now(), lobby.previewUrl),
+      playedSongIds: heard,
+    };
     if (await store.create(state)) return state;
   }
   throw new Error('Could not find a free room code.');

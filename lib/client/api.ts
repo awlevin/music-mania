@@ -19,8 +19,9 @@ async function post(url: string, body?: unknown): Promise<SendResult> {
   }
 }
 
-export function createRoom(): Promise<SendResult> {
-  return post('/api/rooms');
+/** `heard`: song ids this screen has already played, oldest first. */
+export function createRoom(heard: number[]): Promise<SendResult> {
+  return post('/api/rooms', { heard });
 }
 
 /** Send one action to a room. `token` is absent only for `join`. */
