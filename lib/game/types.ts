@@ -8,6 +8,13 @@ export type QuestionKind = 'title' | 'artist' | 'year' | 'album';
 
 export type Phase = 'lobby' | 'loading' | 'guessing' | 'reveal' | 'finished';
 
+/**
+ * How the room is played. `tv`: a big screen plays the music and phones
+ * answer. `aux`: no big screen; one phone (the DJ) plays the music and
+ * answers too. `solo`: aux with a single seat and no lobby.
+ */
+export type Mode = 'tv' | 'aux' | 'solo';
+
 export interface Song {
   /** iTunes trackId. */
   id: number;
@@ -53,6 +60,9 @@ export interface RoomState {
   code: string;
   version: number;
   hostToken: string;
+  mode: Mode;
+  /** Aux and solo: the player whose device plays the music. Null on a tv room. */
+  dj: string | null;
   phase: Phase;
   players: Player[];
   rounds: Round[];
@@ -82,6 +92,7 @@ export type Action =
   | { type: 'answer'; playerId: string; text: string }
   | { type: 'give-up'; playerId: string }
   | { type: 'next'; roundIndex: number }
+  | { type: 'pass-aux'; playerId: string }
   | { type: 'tick' };
 
 export type ReduceResult = { ok: true; state: RoomState } | { ok: false; error: string };
@@ -97,6 +108,8 @@ export interface PlayerView {
   answered: boolean;
   /** Giving up is public the moment it happens: the TV makes a scene of it. */
   gaveUp: boolean;
+  /** This player's phone is the one playing the music. */
+  dj: boolean;
 }
 
 export interface RevealedAnswer extends Answer {
@@ -123,6 +136,7 @@ export interface RoundView {
 export interface RoomView {
   code: string;
   version: number;
+  mode: Mode;
   phase: Phase;
   players: PlayerView[];
   round: RoundView | null;
@@ -137,6 +151,8 @@ export interface RoomView {
     id: string;
     /** The first player in the room runs it from their phone: start, play again. */
     leader: boolean;
+    /** This phone plays the music: it gets the preview URLs and reports when audio starts. */
+    dj: boolean;
     /** What this player locked in. Whether it was right waits for the reveal. */
     answer: { text: string; elapsedMs: number; gaveUp: boolean } | null;
   };

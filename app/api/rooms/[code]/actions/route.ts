@@ -1,7 +1,6 @@
-import { pickSongs } from '@/lib/catalog';
-import { ROUNDS_PER_GAME, SPARE_SONGS } from '@/lib/game/config';
 import type { Action } from '@/lib/game/types';
-import { dispatch, identify, newPlayerId, newToken, normalizeCode } from '@/lib/realtime/rooms';
+import { playsAudio } from '@/lib/game/views';
+import { dispatch, identify, newPlayerId, newToken, normalizeCode, startAction } from '@/lib/realtime/rooms';
 import { getStore } from '@/lib/realtime/store';
 
 export const dynamic = 'force-dynamic';
@@ -59,23 +58,15 @@ export async function POST(
 
   // The TV can start a game, and so can the first player, from their phone.
   const leader = viewer.role === 'player' && room.players[0]?.id === viewer.playerId;
-  if (body.type === 'start' && (viewer.role === 'host' || leader)) {
-    const { songs, finales } = await pickSongs(
-      ROUNDS_PER_GAME + SPARE_SONGS,
-      room.playedSongIds,
-      room.finales?.[0]?.id,
-    );
-    action = {
-      type: 'start',
-      songs: songs.slice(0, ROUNDS_PER_GAME),
-      spares: songs.slice(ROUNDS_PER_GAME),
-      finales,
-    };
+  if (body.type === 'start' && (viewer.role === 'host' || leader)) action = await startAction(room);
+
+  // Whichever device plays the music says when it is playing.
+  if (playsAudio(room, viewer)) {
+    if (body.type === 'audio-started') action = { type: 'audio-started', roundIndex };
+    if (body.type === 'audio-failed') action = { type: 'audio-failed', roundIndex };
   }
 
   if (viewer.role === 'host') {
-    if (body.type === 'audio-started') action = { type: 'audio-started', roundIndex };
-    if (body.type === 'audio-failed') action = { type: 'audio-failed', roundIndex };
     if (body.type === 'remove-player' && body.playerId) {
       action = { type: 'remove-player', playerId: body.playerId };
     }
@@ -85,6 +76,10 @@ export async function POST(
     if (body.type === 'give-up') action = { type: 'give-up', playerId };
     if (body.type === 'rename') action = { type: 'rename', playerId, name: String(body.name ?? '') };
     if (body.type === 'leave') action = { type: 'remove-player', playerId };
+    // The DJ can hand the aux to anyone; the leader can take it back from a phone that went quiet.
+    if (body.type === 'pass-aux' && body.playerId && (room.dj === playerId || leader)) {
+      action = { type: 'pass-aux', playerId: body.playerId };
+    }
   }
 
   if (!action) return refuse(403, 'That action is not available to you.');

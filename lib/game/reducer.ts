@@ -16,18 +16,21 @@ import {
   ROUND_KINDS,
 } from './config';
 import { grade } from './score';
-import type { Action, ReduceResult, RoomState, Round, Song } from './types';
+import type { Action, Mode, ReduceResult, RoomState, Round, Song } from './types';
 
 export function createRoom(
   code: string,
   hostToken: string,
   now: number,
   lobbyUrl: string | null = null,
+  mode: Mode = 'tv',
 ): RoomState {
   return {
     code,
     version: 1,
     hostToken,
+    mode,
+    dj: null,
     phase: 'lobby',
     players: [],
     rounds: [],
@@ -124,12 +127,15 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
     case 'join': {
       const name = cleanName(action.name);
       if (!name) return fail('Enter a name to join.');
+      if (state.mode === 'solo' && state.players.length > 0) return fail('This is a solo game.');
       if (state.players.length >= MAX_PLAYERS) return fail('This room is full.');
       if (state.players.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
         return fail(`Someone here is already called ${name}. Pick another name.`);
       }
       const player = { id: action.playerId, token: action.token, name, score: 0 };
-      return { ok: true, state: { ...state, players: [...state.players, player] } };
+      // Without a big screen, the first phone in is the one on the speakers.
+      const dj = state.dj ?? (state.mode === 'tv' ? null : player.id);
+      return { ok: true, state: { ...state, players: [...state.players, player], dj } };
     }
 
     case 'rename': {
@@ -149,7 +155,9 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
     case 'remove-player': {
       if (!state.players.some((p) => p.id === action.playerId)) return { ok: true, state };
       const players = state.players.filter((p) => p.id !== action.playerId);
-      const next = { ...state, players };
+      // The music must not leave with them: the next phone in line takes the aux.
+      const dj = state.dj === action.playerId ? (players[0]?.id ?? null) : state.dj;
+      const next = { ...state, players, dj };
       // Nobody should wait on a player who has gone.
       return { ok: true, state: allAnswered(next) ? startReveal(next, now) : next };
     }
@@ -275,6 +283,13 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
         return { ok: true, state };
       }
       return { ok: true, state: advance(state) };
+    }
+
+    case 'pass-aux': {
+      if (state.mode !== 'aux') return fail('Only an aux room can pass the aux.');
+      if (!state.players.some((p) => p.id === action.playerId)) return fail('They are not in this room.');
+      if (state.dj === action.playerId) return { ok: true, state };
+      return { ok: true, state: { ...state, dj: action.playerId } };
     }
 
     case 'tick':

@@ -1,8 +1,9 @@
 import { randomBytes, randomInt } from 'node:crypto';
 
-import { lobbySong } from '@/lib/catalog';
+import { lobbySong, pickSongs } from '@/lib/catalog';
+import { ROUNDS_PER_GAME, SPARE_SONGS } from '@/lib/game/config';
 import { createRoom, reduce } from '@/lib/game/reducer';
-import type { Action, RoomState } from '@/lib/game/types';
+import type { Action, Mode, RoomState } from '@/lib/game/types';
 import type { Viewer } from '@/lib/game/views';
 
 import { getStore } from './store';
@@ -30,18 +31,38 @@ export function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z]/g, '').slice(0, CODE_LENGTH);
 }
 
+export function isMode(raw: unknown): raw is Mode {
+  return raw === 'tv' || raw === 'aux' || raw === 'solo';
+}
+
 /** `heard`: songs the hosting screen has played before, oldest first. */
-export async function openRoom(heard: number[] = []): Promise<RoomState> {
+export async function openRoom(heard: number[] = [], mode: Mode = 'tv'): Promise<RoomState> {
   const store = getStore();
-  const lobby = await lobbySong();
+  // A solo game has no lobby, so nothing plays in it.
+  const lobby = mode === 'solo' ? null : await lobbySong();
   for (let attempt = 0; attempt < 20; attempt++) {
     const state = {
-      ...createRoom(newCode(), newToken(), Date.now(), lobby.previewUrl),
+      ...createRoom(newCode(), newToken(), Date.now(), lobby?.previewUrl ?? null, mode),
       playedSongIds: heard,
     };
     if (await store.create(state)) return state;
   }
   throw new Error('Could not find a free room code.');
+}
+
+/** Draw the songs for a new game in this room: ten questions, spares, and the finale. */
+export async function startAction(room: RoomState): Promise<Action> {
+  const { songs, finales } = await pickSongs(
+    ROUNDS_PER_GAME + SPARE_SONGS,
+    room.playedSongIds,
+    room.finales?.[0]?.id,
+  );
+  return {
+    type: 'start',
+    songs: songs.slice(0, ROUNDS_PER_GAME),
+    spares: songs.slice(ROUNDS_PER_GAME),
+    finales,
+  };
 }
 
 export type DispatchResult =

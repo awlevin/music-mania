@@ -6,7 +6,7 @@ import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUNDS_PER_GAME } from './config'
 import { matchesArtist, matchesText, parseYear } from './match';
 import { createRoom, reduce } from './reducer';
 import { grade, speedPoints, yearShare } from './score';
-import type { Action, RoomState, Song } from './types';
+import type { Action, Mode, RoomState, Song } from './types';
 import { viewFor } from './views';
 
 function song(id: number, over: Partial<Song> = {}): Song {
@@ -32,8 +32,8 @@ function run(state: RoomState, action: Action, now: number): RoomState {
   return result.state;
 }
 
-function lobbyWith(names: string[]): RoomState {
-  let state = createRoom('ABCD', 'host-token', 0);
+function lobbyWith(names: string[], mode: Mode = 'tv'): RoomState {
+  let state = createRoom('ABCD', 'host-token', 0, null, mode);
   names.forEach((name, i) => {
     state = run(state, { type: 'join', playerId: `p${i}`, token: `t${i}`, name }, 0);
   });
@@ -271,6 +271,67 @@ describe('views', () => {
     expect(revealed.round?.song?.title).toBe('Song 1');
     expect(revealed.round?.answers).toHaveLength(2);
     expect(JSON.stringify(revealed)).not.toContain('host-token');
+  });
+});
+
+describe('modes', () => {
+  it('leaves a tv room without a DJ, and the audio with the host', () => {
+    const state = guessing(['Ana', 'Ben']);
+    expect(state.dj).toBeNull();
+    const player = viewFor(state, { role: 'player', playerId: 'p0' }, 2000);
+    expect(player.mode).toBe('tv');
+    expect(player.you?.dj).toBe(false);
+    expect(player.round?.previewUrl).toBeUndefined();
+    expect(viewFor(state, { role: 'host' }, 2000).round?.previewUrl).toBeDefined();
+  });
+
+  it('seats the first phone into an aux room as the DJ, with the preview and nothing more', () => {
+    let state = lobbyWith(['Ana', 'Ben'], 'aux');
+    expect(state.dj).toBe('p0');
+    state = run(state, { type: 'start', songs: SONGS, spares: SPARES, finales: [song(900)] }, 500);
+    state = run(state, { type: 'audio-started', roundIndex: 0 }, 1000);
+
+    const dj = viewFor(state, { role: 'player', playerId: 'p0' }, 2000);
+    const other = viewFor(state, { role: 'player', playerId: 'p1' }, 2000);
+    expect(dj.you?.dj).toBe(true);
+    expect(dj.round?.previewUrl).toBe('https://audio/1.m4a');
+    expect(dj.round?.nextPreviewUrl).toBe('https://audio/2.m4a');
+    expect(dj.players.map((p) => p.dj)).toEqual([true, false]);
+    // The DJ still does not get the answer early.
+    expect(JSON.stringify(dj)).not.toContain('Song 1');
+    expect(other.you?.dj).toBe(false);
+    expect(JSON.stringify(other)).not.toContain('audio/');
+
+    // The lobby music and the finale go to the DJ too.
+    expect(viewFor(lobbyWith(['Ana'], 'aux'), { role: 'player', playerId: 'p0' }, 0).lobbyUrl).toBeUndefined();
+    const withLobby = { ...lobbyWith(['Ana'], 'aux'), lobbyUrl: 'https://audio/lobby.m4a' };
+    expect(viewFor(withLobby, { role: 'player', playerId: 'p0' }, 0).lobbyUrl).toBe('https://audio/lobby.m4a');
+  });
+
+  it('hands the aux on when the DJ leaves, and lets it be passed on purpose', () => {
+    let state = lobbyWith(['Ana', 'Ben', 'Cy'], 'aux');
+    state = run(state, { type: 'pass-aux', playerId: 'p2' }, 10);
+    expect(state.dj).toBe('p2');
+    expect(reduce(state, { type: 'pass-aux', playerId: 'nobody' }, 11).ok).toBe(false);
+    state = run(state, { type: 'remove-player', playerId: 'p2' }, 20);
+    expect(state.dj).toBe('p0');
+    state = run(state, { type: 'remove-player', playerId: 'p1' }, 21);
+    expect(state.dj).toBe('p0');
+    state = run(state, { type: 'remove-player', playerId: 'p0' }, 22);
+    expect(state.dj).toBeNull();
+    expect(reduce(lobbyWith(['Ana', 'Ben']), { type: 'pass-aux', playerId: 'p1' }, 0).ok).toBe(false);
+  });
+
+  it('seats one player in a solo room and nobody else', () => {
+    let state = lobbyWith(['Ana'], 'solo');
+    expect(state.dj).toBe('p0');
+    expect(reduce(state, { type: 'join', playerId: 'p1', token: 't1', name: 'Ben' }, 0).ok).toBe(false);
+    state = run(state, { type: 'start', songs: SONGS, spares: SPARES }, 0);
+    state = run(state, { type: 'audio-started', roundIndex: 0 }, 100);
+    // One seat: the reveal follows the answer at once.
+    state = run(state, { type: 'answer', playerId: 'p0', text: 'song 1' }, 600);
+    expect(state.phase).toBe('reveal');
+    expect(state.players[0].score).toBeGreaterThan(900);
   });
 });
 
