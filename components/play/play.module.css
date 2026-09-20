@@ -1,4 +1,4 @@
-/* The phone. Silent by design: no audio element exists on this screen. */
+/* The phone. Silent by design, unless it is the one on aux: only then does a jukebox exist here. */
 
 .page {
   display: flex;
@@ -377,4 +377,204 @@
   color: var(--ink);
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+/* --- Aux and solo -------------------------------------------------------- */
+
+/* The lamp that says this is the phone on the cable. */
+.auxTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-left: 0.6em;
+  padding: 0.15em 0.55em 0.15em 0.45em;
+  border-radius: 99em;
+  background: color-mix(in srgb, var(--seafoam) 18%, transparent);
+  color: var(--seafoam);
+  letter-spacing: 0.14em;
+}
+
+.auxTag i {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--seafoam);
+  box-shadow: 0 0 0.5em var(--seafoam);
+  animation: lamp 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes lamp {
+  to {
+    opacity: 0.45;
+    box-shadow: 0 0 0.1em var(--seafoam);
+  }
+}
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 1rem;
+  background: var(--booth-lift);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--tone) 55%, transparent);
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.ticketCode {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  font-family: var(--font-strip), sans-serif;
+  font-size: 3.6rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--paper);
+}
+
+.ticketCode span {
+  display: inline-block;
+  min-width: 1.05em;
+  padding: 0.1em 0;
+  border-radius: 0.15em;
+  background: color-mix(in srgb, var(--booth-deep) 80%, transparent);
+  color: var(--tone);
+}
+
+.ticketHint {
+  font-size: 1.05rem;
+  color: var(--chrome);
+  text-wrap: pretty;
+}
+
+.ticketHint strong {
+  color: var(--paper);
+}
+
+/* One line that opens into more. */
+.disclosure {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: var(--radius-strip);
+  background: var(--booth-lift);
+  color: var(--chrome);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+
+.disclosure strong {
+  color: var(--paper);
+}
+
+.disclosure i {
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translate(-0.1rem, -0.1rem);
+  transition: transform 220ms var(--ease-spring);
+}
+
+.disclosure i[data-open='true'] {
+  transform: rotate(225deg) translate(-0.1rem, -0.1rem);
+}
+
+.board {
+  text-align: left;
+}
+
+.boardBody {
+  overflow: hidden;
+}
+
+.boardBody .list {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.passAux {
+  margin-top: 0.25rem;
+}
+
+.passList {
+  overflow: hidden;
+}
+
+.passList p {
+  margin: 0.6rem 0 0.5rem;
+  text-align: left;
+}
+
+.passRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-bottom: 0.25rem;
+}
+
+.stall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--butter) 14%, transparent);
+  color: var(--paper);
+  font-size: 1.05rem;
+  animation: pausedIn 400ms ease-out both;
+}
+
+.stall strong {
+  color: var(--butter);
+}
+
+.stall button {
+  align-self: flex-start;
+}
+
+/* The phone on aux was reloaded mid-game: one tap, then the music. */
+.soundGate {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  background: rgb(8 34 42 / 0.97);
+  text-align: center;
+  animation: pausedIn 300ms ease-out both;
+}
+
+.soundGate h2 {
+  font-family: var(--font-display), cursive;
+  font-size: 2.6rem;
+  font-weight: 400;
+}
+
+.soundGate p {
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+  color: var(--chrome);
+  text-wrap: pretty;
+}
+
+.gradeStrip {
+  font-size: 0.85rem;
 }

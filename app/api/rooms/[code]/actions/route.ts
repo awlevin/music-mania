@@ -76,8 +76,9 @@ export async function POST(
     if (body.type === 'give-up') action = { type: 'give-up', playerId };
     if (body.type === 'rename') action = { type: 'rename', playerId, name: String(body.name ?? '') };
     if (body.type === 'leave') action = { type: 'remove-player', playerId };
-    // The DJ can hand the aux to anyone; the leader can take it back from a phone that went quiet.
-    if (body.type === 'pass-aux' && body.playerId && (room.dj === playerId || leader)) {
+    // The DJ can hand the aux to anyone, and anyone can take it for themselves
+    // when the phone that has it has gone quiet. The DJ can always take it back.
+    if (body.type === 'pass-aux' && body.playerId && (room.dj === playerId || body.playerId === playerId)) {
       action = { type: 'pass-aux', playerId: body.playerId };
     }
   }

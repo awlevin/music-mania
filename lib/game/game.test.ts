@@ -5,6 +5,7 @@ import { chooseFinales, chooseSongs } from '@/lib/catalog';
 import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUNDS_PER_GAME } from './config';
 import { matchesArtist, matchesText, parseYear } from './match';
 import { createRoom, reduce } from './reducer';
+import { gradeRun } from './grades';
 import { grade, speedPoints, yearShare } from './score';
 import type { Action, Mode, RoomState, Song } from './types';
 import { viewFor } from './views';
@@ -373,5 +374,18 @@ describe('catalog', () => {
   it('falls back to repeats rather than coming up short', () => {
     const songs = Array.from({ length: 6 }, (_, i) => song(i + 1, { artist: 'Same' }));
     expect(chooseSongs(5, [1, 2], Math.random, songs)).toHaveLength(5);
+  });
+});
+
+describe('grades', () => {
+  it('certifies a solo run by its share of the possible points', () => {
+    expect(gradeRun(10_000).name).toBe('Diamond');
+    expect(gradeRun(9_000).name).toBe('Diamond');
+    expect(gradeRun(8_999).name).toBe('Platinum');
+    expect(gradeRun(6_000).name).toBe('Gold record');
+    expect(gradeRun(1_999).name).toBe('Demo tape');
+    expect(gradeRun(0).name).toBe('Demo tape');
+    // Fewer rounds, same bar.
+    expect(gradeRun(4_500, 5).name).toBe('Diamond');
   });
 });

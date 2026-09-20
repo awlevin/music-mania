@@ -1,10 +1,14 @@
 // End-to-end run of a whole game in real browsers: one host, N phones.
 //   node e2e/game.mjs            (expects the app on BASE_URL, default :3210)
+//   STUB_AUDIO=1 answers preview requests with silence, for machines that
+//   cannot reach Apple; CHROMIUM_PATH names a Chromium to use.
 // Screenshots land in e2e/shots/.
 
 import { mkdirSync, readFileSync } from 'node:fs';
 
 import { chromium, devices } from 'playwright';
+
+import { stubAudio } from './stub.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:3210';
 const ROUNDS = Number(process.env.ROUNDS ?? 10);
@@ -19,6 +23,8 @@ const catalog = [...read('catalog.json'), ...finales];
 const KIND_FIELD = { song: 'title', artist: 'artist', year: 'year', album: 'album' };
 
 const browser = await chromium.launch({
+  // A machine with its own Chromium (CI, a container) names it here.
+  executablePath: process.env.CHROMIUM_PATH,
   args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
 });
 const problems = [];
@@ -30,6 +36,7 @@ const watch = (page, who) => {
 const hostCtx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
 const host = await hostCtx.newPage();
 watch(host, 'host');
+await stubAudio(host);
 // Previews are fetched in play order (each round prefetches the next), so the
 // n-th distinct file the host asks for is round n's song.
 const requested = [];
@@ -53,6 +60,7 @@ for (const name of NAMES) {
   const ctx = await browser.newContext({ ...devices['iPhone 14'] });
   const page = await ctx.newPage();
   watch(page, name);
+  await stubAudio(page);
   await page.goto(`${BASE}/play/${code}`);
   await page.waitForLoadState('networkidle');
   if (name === NAMES[0]) await page.screenshot({ path: `${SHOTS}02-phone-join.png` });
@@ -163,6 +171,7 @@ for (let round = 0; round < ROUNDS; round++) {
     await chidi.screenshot({ path: `${SHOTS}16-phone-feedback-sent.png` });
     await chidi.getByRole('button', { name: 'Back to the game' }).click();
     const board = await hostCtx.newPage();
+    await stubAudio(board);
     await board.goto(`${BASE}/feedback`);
     await board.getByText('It was on the debut, not this one.').first().waitFor();
     await board.screenshot({ path: `${SHOTS}17-feedback-board.png` });

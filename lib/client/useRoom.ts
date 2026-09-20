@@ -34,6 +34,7 @@ function deadline(view: RoomView): number | null {
  * screen's share of timekeeping: once a deadline has passed on the server's
  * clock, it sends `tick` until the room moves on. `tickDelayMs` staggers the
  * screens so the TV normally gets there first and the phones are the backup.
+ * The phone on aux is the TV's stand-in, so it does not wait.
  */
 export function useRoom(code: string, token: string | null, tickDelayMs: number): RoomConnection {
   const [view, setView] = useState<RoomView | null>(null);
@@ -85,7 +86,8 @@ export function useRoom(code: string, token: string | null, tickDelayMs: number)
       const due = deadline(current);
       if (due === null) return;
       const now = Date.now() + offset;
-      if (now < due + tickDelayMs || Date.now() - lastTick < 2000) return;
+      const delay = current.you?.dj ? 0 : tickDelayMs;
+      if (now < due + delay || Date.now() - lastTick < 2000) return;
       lastTick = Date.now();
       void send(code, token, { type: 'tick' });
     }, 100);

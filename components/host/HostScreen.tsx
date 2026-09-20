@@ -19,6 +19,7 @@ import { send } from '@/lib/client/api';
 import { useLinerNote } from '@/lib/client/useLinerNote';
 import { updateSettings, useSettings } from '@/lib/client/settings';
 import { heard, hostTokens } from '@/lib/client/storage';
+import { type Director, useDirector } from '@/lib/client/useDirector';
 import { useJoinUrl } from '@/lib/client/useJoinUrl';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
@@ -31,7 +32,6 @@ import { Confetti } from './Confetti';
 import { Halo } from './Halo';
 import styles from './host.module.css';
 import { QrCode } from './JoinCode';
-import { type Director, useDirector } from './useDirector';
 import { WhiteFlag } from './WhiteFlag';
 
 const noStore = () => () => {};

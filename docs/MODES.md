@@ -1,7 +1,9 @@
 # Modes
 
-A proposal for three ways to play, and the one change to the game core that
-makes all of them the same game.
+Three ways to play, and the one change to the game core that makes all of
+them the same game. Written as a proposal; the first three steps of the
+[order of work](#order-of-work) are built, and this page is now the design
+note for them. The daily challenge is not built yet.
 
 | Mode            | Screen that plays the music        | Who answers                 | Where the reveal shows   |
 | --------------- | ---------------------------------- | --------------------------- | ------------------------ |
@@ -260,16 +262,24 @@ the time it is prefilled.
 
 ## Order of work
 
-1. **Core** — `mode`, `dj`, `Viewer.dj`, `plays()`, the route changes, DJ
+1. **Core** (done) — `mode`, `dj`, `playsAudio()`, the route changes, DJ
    promotion, `pass-aux`. Tests in `lib/game/game.test.ts`: a DJ's view carries
    `previewUrl`, a non-DJ's does not; solo refuses `join`; removing the DJ
-   promotes the next player. Nothing visible changes yet; tv rooms are
+   promotes the next player. Nothing visible changes; tv rooms are
    byte-for-byte the same.
-2. **Aux** — director on the DJ phone, sound gate, wake lock, media session,
-   share link, scoreboard on the reveal, stall notice, e2e run.
-3. **Solo** — landing key, one-request create-join-start, copy.
+2. **Aux** (done) — director on the DJ phone (`lib/client/useDirector.ts`,
+   shared with the TV), sound gate, wake lock (`useWakeLock`), media session
+   (`useNowPlaying`), share link, scoreboard on the reveal, stall notice with
+   *Take the aux* for anyone, `e2e/modes.mjs`.
+3. **Solo** (done) — landing card, one-request create-join-start, copy,
+   grades (`lib/game/grades.ts`), personal best in localStorage.
 4. **Daily** — seeded draw with snapshot, profile id, board store, `/daily`
    page, finish hook.
+
+One departure from the plan above: the stall notice's *Take the aux* is
+offered to every player, not only the leader. In practice the phone that
+dozes off is usually the leader's, since the leader and the DJ start out as
+the same phone.
 
 Steps 1 to 3 are one pull request each and each leaves `main` playable. Step
 4 is the first thing in the project that keeps data past a room's six-hour

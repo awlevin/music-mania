@@ -1,3 +1,5 @@
+import type { Mode } from '@/lib/game/types';
+
 export type SendResult =
   | { ok: true; data: Record<string, unknown> }
   | { ok: false; error: string; status: number };
@@ -19,9 +21,13 @@ async function post(url: string, body?: unknown): Promise<SendResult> {
   }
 }
 
-/** `heard`: song ids this screen has already played, oldest first. */
-export function createRoom(heard: number[]): Promise<SendResult> {
-  return post('/api/rooms', { heard });
+/**
+ * Open a room. `heard`: song ids this screen has already played, oldest
+ * first. A tv room answers with a host token; an aux or solo room seats
+ * `name` straight away and answers with a player token.
+ */
+export function createRoom(heard: number[], mode: Mode = 'tv', name?: string): Promise<SendResult> {
+  return post('/api/rooms', { heard, mode, name });
 }
 
 /** Send one action to a room. `token` is absent only for `join`. */

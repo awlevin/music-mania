@@ -99,3 +99,117 @@
     transform: none;
   }
 }
+
+/* --- Ways to play -------------------------------------------------------- */
+
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mode {
+  border-radius: var(--radius-key);
+  background: color-mix(in srgb, var(--booth-lift) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--booth-line) 70%, transparent);
+  transition:
+    background 200ms,
+    box-shadow 200ms;
+}
+
+.mode[data-open='true'] {
+  background: var(--booth-lift);
+  box-shadow: inset 0 0 0 2px var(--tone);
+}
+
+.modeHead {
+  display: grid;
+  grid-template-columns: 1.25rem 1fr;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: inherit;
+}
+
+.modeHead:hover strong {
+  color: var(--tone);
+}
+
+/* The jukebox's selector lamp: lit on the chosen row, and it slides between rows. */
+.modeMark {
+  position: relative;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--booth-line);
+}
+
+.modeMark i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 0.6rem color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.modeText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.modeText strong {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  transition: color 150ms;
+}
+
+.mode[data-open='true'] .modeText strong {
+  color: var(--tone);
+}
+
+.modeText span {
+  font-size: 0.95rem;
+  color: var(--chrome);
+}
+
+.modeBody {
+  overflow: hidden;
+}
+
+.modeForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+  font-size: 0.8rem;
+}
+
+.modeForm .modeDetail {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--paper);
+  text-wrap: pretty;
+}
+
+.modeForm .modeNote {
+  min-height: 1.3em;
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--chrome);
+  text-align: center;
+}
+
+.modeForm .modeNote[data-error='true'] {
+  color: var(--bubblegum);
+}

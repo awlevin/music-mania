@@ -1,10 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+// Keeps whichever device plays the music in step with the room: the TV in a
+// living-room game, the DJ's phone in an aux or solo game.
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { send } from '@/lib/client/api';
 import { getJukebox, type Jukebox } from '@/lib/client/jukebox';
 import type { RoomView } from '@/lib/game/types';
+
+import { useNowPlaying } from './useNowPlaying';
+import { useWakeLock } from './useWakeLock';
 
 /** Time on the "get ready" card before the music starts, so the room can read the question. */
 const INTRO_MS = 3600;
@@ -44,6 +50,9 @@ export interface Director {
  * out while the next loads on the other deck, swings the needle in, and only
  * when sound is actually out tells the server the round has begun, so the 15
  * seconds start when the room can hear music.
+ *
+ * With a null `token` it does nothing at all: a phone that is not the DJ
+ * never so much as creates an audio element.
  */
 export function useDirector(
   code: string,
@@ -52,20 +61,42 @@ export function useDirector(
   clockOffset: number,
   lobbyMusic: boolean,
 ): Director {
-  const [jukebox] = useState(() => (typeof window === 'undefined' ? null : getJukebox()));
-  /** Whether the browser currently lets this page make sound. */
-  const [unlocked, setUnlocked] = useState(() => jukebox?.unlocked ?? false);
+  // The jukebox exists only on a device that is allowed to play. A phone that
+  // is handed the aux mid-game picks one up here, still locked: nobody has
+  // clicked on it yet.
+  const jukebox = useMemo<Jukebox | null>(
+    () => (token && typeof window !== 'undefined' ? getJukebox() : null),
+    [token],
+  );
+  // Whether the browser currently lets this page make sound. Read from the
+  // jukebox on every render, because the answer changes underneath us: a
+  // phone that becomes the DJ mid-game picks up a jukebox the landing page's
+  // click may already have unlocked. `resound` is a render for its own sake,
+  // after anything that changes the answer.
+  const [, resound] = useState(0);
+  const unlocked = Boolean(jukebox?.unlocked);
   /** The cue whose needle has started down. */
   const [dropped, setDropped] = useState('');
   /** What the jukebox was last pointed at, so each thing is cued once. */
   const cued = useRef('');
 
-  useEffect(() => () => jukebox?.stop(), [jukebox]);
+  useEffect(() => {
+    if (!jukebox) return;
+    return () => {
+      jukebox.stop();
+      cued.current = '';
+    };
+  }, [jukebox]);
+
+  // A phone on the car stereo must not doze off between songs.
+  useWakeLock(Boolean(token) && view !== null);
+  // What the dashboard shows, and what the steering-wheel buttons do.
+  useNowPlaying(token ? code : null, token, view);
 
   const enableSound = useCallback(async () => {
     if (!jukebox) return;
     await jukebox.unlock();
-    setUnlocked(true);
+    resound((v) => v + 1);
   }, [jukebox]);
 
   const phase = view?.phase;
@@ -150,7 +181,8 @@ export function useDirector(
         if (!current()) return;
         cued.current = '';
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
-          setUnlocked(false);
+          // The browser took the permission back (a long silence, say): ask for a tap again.
+          resound((v) => v + 1);
         } else if (phase === 'loading') {
           await sendUntilHeard(code, token, { type: 'audio-failed', roundIndex });
         }
@@ -162,7 +194,7 @@ export function useDirector(
 
   return {
     jukebox,
-    needsClick: phase !== undefined && !unlocked,
+    needsClick: Boolean(token) && phase !== undefined && !unlocked,
     enableSound,
     needleDown: !paused && (phase === 'guessing' || phase === 'reveal' || (phase === 'loading' && dropped === roundKey)),
   };
