@@ -49,6 +49,31 @@ export const heard = {
   },
 };
 
+/**
+ * The quick-play game in progress, so a reload mid-song picks it back up.
+ * Session storage: it belongs to this tab and goes when the tab does.
+ */
+export const soloGame = {
+  get: <T>(): T | null => {
+    try {
+      const raw = window.sessionStorage.getItem('mm:solo:game');
+      return raw ? (JSON.parse(raw) as T) : null;
+    } catch {
+      return null;
+    }
+  },
+  set: (state: unknown) => {
+    try {
+      window.sessionStorage.setItem('mm:solo:game', JSON.stringify(state));
+    } catch {}
+  },
+  clear: () => {
+    try {
+      window.sessionStorage.removeItem('mm:solo:game');
+    } catch {}
+  },
+};
+
 export const lastName = {
   get: () => read<string>('mm:name') ?? '',
   set: (name: string) => write('mm:name', name),

@@ -41,6 +41,16 @@ plays from where they are sitting. Nothing to install, no accounts.
 Nobody knows it? Hit **Give up** to tap out of the round. A white flag drops
 onto the television and a sad trombone plays.
 
+### Playing alone
+
+Nobody around? Press **Quick play** on the landing page, or open
+[/solo](https://music-mania-three.vercel.app/solo). One screen plays the
+songs and takes your answers: the same ten questions, the same fifteen
+seconds, the same scoring, with no room to open and nothing to scan. The
+reveal comes the moment you lock in, so a game takes about as long as you
+make it. Your best score stays on that browser, and every game tells you
+whether you beat it.
+
 <p align="center">
   <img src="assets/screenshots/tv-guessing.png" alt="The television during a round: a spinning record, a countdown, and who has locked in" width="900">
   <img src="assets/screenshots/tv-reveal.png" alt="The television at the reveal: the album sleeve beside the record, the title strip, and the points this round" width="900">
@@ -53,7 +63,9 @@ Vercel gives no instance affinity: the phone's `POST` and the television's
 event stream almost never land on the same function. So no server holds the
 game in memory and no server runs a timer.
 
-The whole game is one pure function, `reduce(state, action, now)`. Phases end
+The whole game is one pure function, `reduce(state, action, now)`. Quick play
+runs that same function in the browser, against the browser's own clock, and
+only asks the server for the songs. Phases end
 on deadlines carried in the state, not on `setTimeout`; any screen whose own
 clock says a deadline has passed may send `tick`, and the first one through
 moves the room on. Every write is a compare-and-set on the room's version
@@ -120,8 +132,11 @@ npm run dev -- -p 3210
 npm run e2e
 ```
 
+`npm run e2e:solo` does the same for a quick-play game on one phone.
 Screenshots land in `e2e/shots/`, which is where the pictures in this README
-come from.
+come from. On a machine that cannot reach Apple's CDN, set `FAKE_AUDIO=1` and
+both runs play a tone in place of each preview; `CHROMIUM=/path/to/chrome`
+points Playwright at a browser that is already installed.
 
 ## Deploy it
 

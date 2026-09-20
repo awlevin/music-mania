@@ -40,7 +40,7 @@ export interface Feedback {
   resolvedAt?: number;
   /** Private: shown to whoever works the queue, never on the public page. */
   context: {
-    from: 'host' | 'player' | 'visitor';
+    from: 'host' | 'player' | 'solo' | 'visitor';
     playerName?: string;
     room?: string;
     phase?: string;

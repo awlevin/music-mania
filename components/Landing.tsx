@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 
-import { Field, Key, VinylRecord, Wordmark } from '@/components/ds';
+import { Field, Key, KeyLink, VinylRecord, Wordmark } from '@/components/ds';
 import { createRoom } from '@/lib/client/api';
 import { getJukebox } from '@/lib/client/jukebox';
 import { heard, hostTokens } from '@/lib/client/storage';
@@ -83,6 +83,14 @@ export function Landing() {
             </div>
             <p>Or scan the code on the host screen.</p>
           </form>
+
+          <div className={styles.action} data-tone="year">
+            <h2>Just you</h2>
+            <KeyLink href="/solo" variant="tone">
+              Quick play
+            </KeyLink>
+            <p>Ten songs on this screen, no room needed. Beat your own score.</p>
+          </div>
         </section>
       </div>
     </main>

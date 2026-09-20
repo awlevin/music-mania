@@ -1,0 +1,687 @@
+/* Quick play. One screen that is both the television and the phone: sized
+ * like the phone, since that is where most solo games will be played, and
+ * given a second column when there is room for one. */
+
+.page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse 120% 50% at 50% 0%, var(--booth-lift), transparent 70%);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3.25rem;
+}
+
+.mark {
+  font-size: 1.35rem;
+}
+
+.topEnd {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.score {
+  padding: 0.3rem 0.8rem;
+  border-radius: 99em;
+  background: var(--booth-lift);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--butter);
+}
+
+.eyebrow {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.headline {
+  font-family: var(--font-display), cursive;
+  font-size: clamp(2.2rem, 10vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.headline em {
+  font-style: normal;
+  color: var(--tone);
+}
+
+.sub {
+  font-size: 1.1rem;
+  color: var(--chrome);
+  text-wrap: pretty;
+}
+
+.small {
+  font-size: 0.95rem;
+  text-align: center;
+  color: var(--chrome);
+}
+
+.error {
+  min-height: 1.4em;
+  font-size: 0.95rem;
+  color: var(--bubblegum);
+}
+
+.error:empty {
+  min-height: 0;
+}
+
+.panelTitle {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.labelMark {
+  font-size: 4.2em;
+  line-height: 1;
+}
+
+/* --- Start --------------------------------------------------------------- */
+
+.start {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.startRecord {
+  width: min(52vw, 13rem);
+  margin: 0 auto;
+  font-size: 0.75rem;
+  --tone: var(--cherry);
+}
+
+.startRecord > div > div {
+  /* An idle jukebox turns slowly. */
+  animation-duration: 6s;
+}
+
+.startText {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.startText .sub {
+  margin-bottom: 0.5rem;
+}
+
+.best {
+  font-size: 1.05rem;
+  text-align: center;
+  color: var(--chrome);
+}
+
+.best strong {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.25em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--butter);
+}
+
+.best[data-fresh='true'] strong {
+  color: var(--tone);
+}
+
+/* --- Round --------------------------------------------------------------- */
+
+.round {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.pips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pips li {
+  width: 1.1rem;
+  height: 0.4rem;
+  border-radius: 99em;
+  background: var(--tone);
+  transition:
+    width 400ms var(--ease-spring),
+    opacity 300ms;
+}
+
+.pips li[data-state='next'] {
+  opacity: 0.28;
+}
+
+.pips li[data-state='done'] {
+  opacity: 0.7;
+}
+
+.pips li[data-state='now'] {
+  width: 2.4rem;
+  height: 0.55rem;
+}
+
+.turntable {
+  position: relative;
+  width: min(58vw, 14.5rem);
+  margin: 1.5rem auto 1rem;
+  font-size: 0.75rem;
+}
+
+.record {
+  width: 100%;
+}
+
+.halo {
+  position: absolute;
+  inset: -19%;
+}
+
+.halo canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.ring {
+  position: absolute;
+  inset: -4.5%;
+  width: 109%;
+  height: 109%;
+  transform: rotate(-90deg);
+}
+
+.ringTrack,
+.ringFill {
+  fill: none;
+  stroke-width: 1.4;
+}
+
+.ringTrack {
+  stroke: rgb(255 255 255 / 0.08);
+}
+
+.ringFill {
+  stroke: var(--tone);
+  stroke-linecap: round;
+}
+
+/* The seconds left, pinned to the record's shoulder. */
+.clock {
+  position: absolute;
+  right: -8%;
+  bottom: -4%;
+  display: grid;
+  place-items: center;
+  min-width: 3.6rem;
+  height: 3.6rem;
+  padding: 0 0.6rem;
+  border-radius: 99em;
+  background: var(--booth-deep);
+  box-shadow:
+    0 0 0 0.2rem var(--booth),
+    0 0.5rem 1.2rem rgb(0 0 0 / 0.45);
+}
+
+.countdown {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--paper);
+}
+
+.countdown[data-urgent='true'] {
+  color: var(--cherry);
+  animation: pulse 1s var(--ease-out) infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.answerForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.giveUp {
+  align-self: center;
+}
+
+/* --- Reveal -------------------------------------------------------------- */
+
+.verdict {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.verdict strong {
+  font-size: 3rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--chrome);
+  animation: land 450ms var(--ease-spring) both;
+}
+
+.verdict[data-won='true'] strong {
+  color: var(--tone);
+}
+
+.verdict span {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--chrome);
+}
+
+@keyframes land {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.answerHero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 1rem;
+  background: var(--tone);
+  color: var(--tone-ink);
+  font-family: var(--font-strip), sans-serif;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.05;
+  animation: land 450ms var(--ease-spring) 120ms both;
+}
+
+.answerHero span {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  opacity: 0.75;
+}
+
+.answerHero strong {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.answerHero strong[data-long='true'] {
+  font-size: 1.8rem;
+}
+
+.answerHero small {
+  margin-top: 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+  overflow-wrap: anywhere;
+}
+
+.strip {
+  font-size: 0.62rem;
+}
+
+.footLink {
+  align-self: center;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: none;
+  /* There if you want it, quiet if you do not. */
+  color: color-mix(in srgb, var(--chrome) 55%, var(--booth));
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--chrome) 30%, transparent);
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+}
+
+/* --- Finished ------------------------------------------------------------ */
+
+.finished {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0;
+  --tone: var(--butter);
+  --tone-ink: var(--ink);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.finalScore {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 5rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--butter);
+  animation: land 500ms var(--ease-spring) both;
+}
+
+.result .headline {
+  animation: land 450ms var(--ease-spring) 150ms both;
+}
+
+.result .sub {
+  margin-bottom: 0.75rem;
+}
+
+.result > button,
+.result > a {
+  align-self: stretch;
+}
+
+.recap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.recapList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+/* --- Overlays ------------------------------------------------------------ */
+
+.chapter {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem 1.5rem;
+  background: var(--tone);
+  color: var(--tone-ink);
+  text-align: center;
+}
+
+.chapterEyebrow {
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.chapterTitle {
+  font-family: var(--font-display), cursive;
+  font-size: clamp(2.6rem, 12vw, 4.5rem);
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.chapterTitle em {
+  display: block;
+  font-style: normal;
+  font-size: 1.5em;
+  /* The word itself, stamped in the booth's dark ink. */
+  color: var(--booth-deep);
+}
+
+.chapterHint {
+  max-width: 24em;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.intermission {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.9rem;
+  max-width: 30rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom));
+  background: rgb(8 34 42 / 0.96);
+}
+
+.pauseBars {
+  display: flex;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+
+.pauseBars i {
+  width: 1.1rem;
+  height: 3.8rem;
+  border-radius: 0.3rem;
+  background: var(--paper);
+  transform-origin: 50% 100%;
+  animation: breathe 2.4s ease-in-out infinite alternate;
+}
+
+.pauseBars i + i {
+  background: var(--butter);
+  animation-delay: -1.2s;
+}
+
+@keyframes breathe {
+  to {
+    transform: scaleY(0.72);
+  }
+}
+
+.linerNote {
+  min-height: 5.5em;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+  line-height: 1.35;
+  color: var(--chrome);
+  text-wrap: pretty;
+  animation: fadeIn 500ms ease-out both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.soundGate {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  padding: 2rem;
+  background: rgb(8 34 42 / 0.92);
+  text-align: center;
+}
+
+.soundGate h2 {
+  font-family: var(--font-display), cursive;
+  font-size: 2.4rem;
+  font-weight: 400;
+}
+
+.soundGate p {
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  color: var(--chrome);
+}
+
+/* --- A wider screen ------------------------------------------------------ */
+
+@media (min-width: 56rem) {
+  .page {
+    max-width: 62rem;
+    padding: 1.5rem 3rem 2.5rem;
+  }
+
+  .mark {
+    font-size: 1.7rem;
+  }
+
+  .start {
+    flex-direction: row;
+    align-items: center;
+    gap: 4rem;
+  }
+
+  .startRecord {
+    flex: none;
+    width: 22rem;
+    font-size: 1.25rem;
+  }
+
+  .startText {
+    max-width: 26rem;
+  }
+
+  .round {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    align-items: center;
+    column-gap: 4rem;
+  }
+
+  .pips {
+    grid-column: 1 / -1;
+    gap: 0.5rem;
+  }
+
+  .pips li {
+    width: 1.6rem;
+    height: 0.5rem;
+  }
+
+  .pips li[data-state='now'] {
+    width: 3.4rem;
+    height: 0.7rem;
+  }
+
+  .turntable {
+    width: 22rem;
+    font-size: 1.25rem;
+  }
+
+  .clock {
+    min-width: 4.6rem;
+    height: 4.6rem;
+  }
+
+  .countdown {
+    font-size: 2.6rem;
+  }
+
+  .prompt {
+    max-width: 26rem;
+  }
+
+  .answerHero strong {
+    font-size: 2.6rem;
+  }
+
+  .finished {
+    display: grid;
+    grid-template-columns: 1fr 24rem;
+    align-items: start;
+    gap: 4rem;
+    padding-top: 2rem;
+  }
+
+  .result {
+    max-width: 26rem;
+    margin: 0 auto;
+  }
+
+  .intermission {
+    max-width: none;
+    align-items: center;
+    text-align: center;
+  }
+
+  .intermission > button {
+    width: auto;
+    min-width: 16rem;
+  }
+
+  .linerNote {
+    max-width: 30rem;
+  }
+}

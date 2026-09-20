@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
 import {
   GearIcon,
@@ -31,10 +31,20 @@ import { Confetti } from './Confetti';
 import { Halo } from './Halo';
 import styles from './host.module.css';
 import { QrCode } from './JoinCode';
-import { type Director, useDirector } from './useDirector';
+import { type AudioReport, type Director, useDirector } from './useDirector';
 import { WhiteFlag } from './WhiteFlag';
 
 const noStore = () => () => {};
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** The round cannot begin until this lands, so one dropped request must not stall the room. */
+async function sendUntilHeard(code: string, token: string, action: AudioReport) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if ((await send(code, token, action)).ok) return;
+    await wait(400 * (attempt + 1));
+  }
+}
 
 export function HostScreen({ code }: { code: string }) {
   // undefined while the server renders; null when this browser holds no token.
@@ -45,7 +55,11 @@ export function HostScreen({ code }: { code: string }) {
   );
   const { view, status, clockOffset } = useRoom(code, token ?? null, 0);
   const settings = useSettings();
-  const director = useDirector(code, token ?? null, view, clockOffset, settings.lobbyMusic);
+  const report = useMemo(
+    () => (token ? (action: AudioReport) => sendUntilHeard(code, token, action) : null),
+    [code, token],
+  );
+  const director = useDirector(view, clockOffset, settings.lobbyMusic, report);
 
   // Remember every song this screen reveals, so later rooms skip it.
   const revealedSongId = view?.round?.song?.id;

@@ -32,3 +32,8 @@ export function send(
 ): Promise<SendResult> {
   return post(`/api/rooms/${code}/actions`, { ...action, token });
 }
+
+/** Songs for one quick-play game. `heard`: song ids this screen has already played, oldest first. */
+export function drawSolo(heard: number[], lastFinaleId?: number): Promise<SendResult> {
+  return post('/api/solo', { heard, lastFinaleId });
+}

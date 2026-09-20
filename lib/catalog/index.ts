@@ -97,6 +97,11 @@ export async function pickSongs(
   return { songs: fresh.slice(0, songs.length), finales: fresh.slice(songs.length) };
 }
 
+/** A catalog song by iTunes id, or undefined. Finales count. */
+export function findSong(id: number): Song | undefined {
+  return SONGS.find((s) => s.id === id) ?? FINALES.find((s) => s.id === id);
+}
+
 /** "Feel It Still", for the lobby, with a fresh preview URL. */
 export async function lobbySong(): Promise<Song> {
   return (await refreshPreviews([lobby as Song]))[0];

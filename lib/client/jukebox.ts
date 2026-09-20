@@ -70,12 +70,22 @@ export class Jukebox {
   private playlistRun = 0;
   private held = false;
   private runout: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private unlocking: Promise<void> | null = null;
 
   /**
    * Browsers only let sound start from a click. Call this from one; after
    * that the jukebox may play for the rest of the page's life.
    */
-  async unlock(): Promise<void> {
+  unlock(): Promise<void> {
+    // A tap is a pointerdown and then a click, and a screen may answer both.
+    // They share one unlock: a second priming would cut the first one off.
+    this.unlocking ??= this.doUnlock().finally(() => {
+      this.unlocking = null;
+    });
+    return this.unlocking;
+  }
+
+  private async doUnlock(): Promise<void> {
     if (!this.context) {
       const context = new AudioContext();
       const analyser = context.createAnalyser();
