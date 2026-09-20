@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { chooseFinales, chooseSongs } from '@/lib/catalog';
+import { chooseFinales, chooseReprises, chooseSongs } from '@/lib/catalog';
 
-import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUNDS_PER_GAME } from './config';
-import { matchesArtist, matchesText, parseYear } from './match';
+import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS, ROUND_KINDS, ROUNDS_PER_GAME } from './config';
+import { leadArtist, matchesArtist, matchesText, parseYear } from './match';
 import { createRoom, reduce } from './reducer';
+import { knowers, pickReprises } from './reprise';
 import { grade, speedPoints, yearShare } from './score';
-import type { Action, RoomState, Song } from './types';
+import type { Action, RoomState, Round, Song } from './types';
 import { viewFor } from './views';
 
 function song(id: number, over: Partial<Song> = {}): Song {
@@ -78,6 +79,12 @@ describe('matching', () => {
     expect(parseYear(' 1984 ')).toBe(1984);
     expect(parseYear('84')).toBeNull();
     expect(parseYear('nineteen')).toBeNull();
+  });
+
+  it('names the lead artist of a credit', () => {
+    expect(leadArtist('Queen & David Bowie')).toBe('queen');
+    expect(leadArtist('Rihanna feat. JAY-Z')).toBe('rihanna');
+    expect(leadArtist('The Beatles')).toBe('the beatles');
   });
 });
 
@@ -251,6 +258,121 @@ describe('room', () => {
   });
 });
 
+// A game's worth of rounds, with the early rounds already answered.
+// `right` says, per round, who got it: knowledge of the artist.
+function heardRounds(right: string[][]): Round[] {
+  return right.map((ids, i) => ({
+    kind: ROUND_KINDS[i],
+    song: song(i + 1),
+    guessStartedAt: 0,
+    revealStartedAt: 1,
+    answers: Object.fromEntries(
+      ids.map((id) => [id, { text: 'x', elapsedMs: 0, correct: true, points: 800 }]),
+    ),
+  }));
+}
+
+/** A reprise of round `i`: another song by that round's artist. */
+const reprise = (i: number) => song(200 + i, { artist: `Artist ${i}`, album: `Album ${200 + i}` });
+
+const FIRST_ALBUM = ROUND_KINDS.indexOf('album');
+const EVERYONE = ['p0', 'p1', 'p2'];
+
+describe('reprises', () => {
+  it('counts a right answer as knowing the artist, and a close year too', () => {
+    const [round] = heardRounds([['p0']]);
+    expect(knowers(round)).toEqual(['p0']);
+    const year: Round = {
+      ...round,
+      kind: 'year',
+      answers: {
+        p0: { text: '1992', elapsedMs: 0, correct: false, yearsOff: 2, points: 700 },
+        p1: { text: '1985', elapsedMs: 0, correct: false, yearsOff: 5, points: 100 },
+        p2: { text: '', elapsedMs: 0, correct: false, gaveUp: true, points: 0 },
+      },
+    };
+    expect(knowers(year)).toEqual(['p0']);
+  });
+
+  it('goes first to the artist the most people know', () => {
+    const heard = heardRounds([['p0'], ['p0', 'p1', 'p2'], ['p1']]);
+    const pool = [reprise(1), reprise(2), reprise(3)];
+    expect(pickReprises(heard, pool, 1, EVERYONE)[0]?.id).toBe(202);
+  });
+
+  it('gives the second round to someone the first did not cover', () => {
+    // Ana knows everything. Ben only knows round 3's artist.
+    const heard = heardRounds([['p0'], ['p0'], ['p0', 'p1']]);
+    const pool = [reprise(1), reprise(2), reprise(3)];
+    const picks = pickReprises(heard, pool, 2, EVERYONE);
+    expect(picks.map((s) => s?.id ?? null)).toEqual([203, 201]);
+
+    // Two artists known by the same big crowd, one by a lone third player:
+    // the second pick is the lone player's, not the crowd's second favourite.
+    const crowd = heardRounds([['p0', 'p1'], ['p0', 'p1'], ['p2']]);
+    expect(pickReprises(crowd, pool, 2, EVERYONE).map((s) => s?.id ?? null)).toEqual([201, 203]);
+  });
+
+  it('never repeats an artist, and stays with known artists when nobody new can be covered', () => {
+    const heard = heardRounds([['p0'], ['p0'], []]);
+    const pool = [reprise(1), reprise(2), reprise(3), song(250, { artist: 'Artist 1' })];
+    const picks = pickReprises(heard, pool, 3, EVERYONE);
+    expect(picks.map((s) => s?.id ?? null)).toEqual([201, 202, null]);
+  });
+
+  it('ignores artists nobody got right, and players who have left', () => {
+    const heard = heardRounds([['p0'], ['gone'], []]);
+    const pool = [reprise(1), reprise(2), reprise(3)];
+    expect(pickReprises(heard, pool, 2, EVERYONE).map((s) => s?.id ?? null)).toEqual([201, null]);
+    expect(pickReprises(heard, [], 2, EVERYONE)).toEqual([null, null]);
+  });
+
+  it('swaps the album rounds on the way into the round before them', () => {
+    let state = lobbyWith(['Ana', 'Ben']);
+    const pool = [reprise(1), reprise(4)];
+    state = run(state, { type: 'start', songs: SONGS, spares: SPARES, reprises: pool }, 0);
+    let now = 0;
+    for (let i = 0; i < FIRST_ALBUM - 1; i++) {
+      state = run(state, { type: 'audio-started', roundIndex: i }, (now += 100));
+      // Ana gets rounds 1 and 4; Ben gets round 4 only.
+      const right = String(state.rounds[i].song[state.rounds[i].kind]);
+      state = run(state, { type: 'answer', playerId: 'p0', text: i === 0 || i === 3 ? right : 'no' }, (now += 100));
+      state = run(state, { type: 'answer', playerId: 'p1', text: i === 3 ? right : 'no' }, (now += 100));
+      const before = state.rounds.map((r) => r.song.id);
+      state = run(state, { type: 'next', roundIndex: i }, (now += 100));
+      if (i < FIRST_ALBUM - 2) expect(state.rounds.map((r) => r.song.id)).toEqual(before);
+    }
+    expect(state.roundIndex).toBe(FIRST_ALBUM - 1);
+    // Round 4's artist is known by both, so it leads; round 1's covers nobody new but still beats a cold draw.
+    expect(state.rounds.slice(FIRST_ALBUM).map((r) => r.song.id)).toEqual([204, 201]);
+    expect(state.rounds.slice(FIRST_ALBUM).every((r) => r.kind === 'album')).toBe(true);
+    expect(state.reprises).toEqual([]);
+    // The album songs drawn at start were never heard: they become spares, not history.
+    expect(state.spares.map((s) => s.id)).toEqual([101, 102, FIRST_ALBUM + 1, FIRST_ALBUM + 2]);
+    expect(state.playedSongIds).not.toContain(FIRST_ALBUM + 1);
+    expect(state.playedSongIds).toEqual(expect.arrayContaining([204, 201]));
+    // The host prefetches the reprise, not the displaced song.
+    const host = viewFor(state, { role: 'host' }, now);
+    expect(host.round?.nextPreviewUrl).toBe('https://audio/204.m4a');
+  });
+
+  it('keeps the draw when nobody got anything right, or a room predates reprises', () => {
+    let state = lobbyWith(['Ana']);
+    state = run(state, { type: 'start', songs: SONGS, spares: SPARES, reprises: [reprise(1)] }, 0);
+    let now = 0;
+    for (let i = 0; i < FIRST_ALBUM - 1; i++) {
+      state = run(state, { type: 'audio-started', roundIndex: i }, (now += 100));
+      state = run(state, { type: 'answer', playerId: 'p0', text: 'no' }, (now += 100));
+      state = run(state, { type: 'next', roundIndex: i }, (now += 100));
+    }
+    expect(state.rounds.map((r) => r.song.id)).toEqual(SONGS.map((s) => s.id));
+    expect(state.spares).toEqual(SPARES);
+
+    const old = { ...guessing(['Ana']), reprises: undefined } as unknown as RoomState;
+    expect(reduce(old, { type: 'next', roundIndex: 0 }, 2000).ok).toBe(true);
+  });
+});
+
 describe('views', () => {
   it('keeps the answer away from every screen until the reveal', () => {
     let state = guessing(['Ana', 'Ben']);
@@ -312,5 +434,22 @@ describe('catalog', () => {
   it('falls back to repeats rather than coming up short', () => {
     const songs = Array.from({ length: 6 }, (_, i) => song(i + 1, { artist: 'Same' }));
     expect(chooseSongs(5, [1, 2], Math.random, songs)).toHaveLength(5);
+  });
+
+  it('draws one unheard reprise per artist heard, and none for an artist with nothing left', () => {
+    const songs = [
+      song(1, { artist: 'Queen' }),
+      song(2, { artist: 'Queen & David Bowie' }),
+      song(3, { artist: 'Queen' }),
+      song(4, { artist: 'ABBA' }),
+      song(5, { artist: 'ABBA' }),
+      song(6, { artist: 'Prince' }),
+    ];
+    const heard = [songs[0], songs[3], songs[5]];
+    for (let i = 0; i < 20; i++) {
+      const picked = chooseReprises(heard, [1, 4, 6, 5], Math.random, songs);
+      expect(picked).toHaveLength(1);
+      expect([2, 3]).toContain(picked[0].id);
+    }
   });
 });

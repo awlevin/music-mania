@@ -15,6 +15,7 @@ import {
   REVEAL_MS,
   ROUND_KINDS,
 } from './config';
+import { pickReprises } from './reprise';
 import { grade } from './score';
 import type { Action, ReduceResult, RoomState, Round, Song } from './types';
 
@@ -33,6 +34,7 @@ export function createRoom(
     rounds: [],
     roundIndex: 0,
     spares: [],
+    reprises: [],
     finales: [],
     pause: null,
     lobbyUrl,
@@ -70,7 +72,51 @@ function advance(state: RoomState): RoomState {
   const last = state.roundIndex >= state.rounds.length - 1;
   return last
     ? { ...state, phase: 'finished' }
-    : { ...state, phase: 'loading', roundIndex: state.roundIndex + 1 };
+    : reprise({ ...state, phase: 'loading', roundIndex: state.roundIndex + 1 });
+}
+
+/**
+ * On the way into the round before the album rounds, swap the album songs
+ * for reprises of artists the room has shown it knows. One round early so
+ * the host still prefetches the right preview. The songs drawn at start
+ * become extra spares; they were never heard.
+ */
+function reprise(state: RoomState): RoomState {
+  const first = state.rounds.findIndex((r) => r.kind === 'album');
+  const pool = state.reprises ?? [];
+  if (first < 1 || state.roundIndex !== first - 1 || pool.length === 0) return state;
+
+  const slots = state.rounds.flatMap((r, i) => (i > state.roundIndex && r.kind === 'album' ? [i] : []));
+  const picks = pickReprises(
+    state.rounds.slice(0, state.roundIndex),
+    pool,
+    slots.length,
+    state.players.map((p) => p.id),
+  );
+
+  const rounds = state.rounds.slice();
+  const displaced: Song[] = [];
+  const chosen: Song[] = [];
+  slots.forEach((index, i) => {
+    const song = picks[i];
+    if (!song) return;
+    displaced.push(rounds[index].song);
+    chosen.push(song);
+    rounds[index] = { ...rounds[index], song };
+  });
+  if (chosen.length === 0) return state;
+
+  const out = new Set(displaced.map((s) => s.id));
+  return {
+    ...state,
+    rounds,
+    reprises: [],
+    spares: [...state.spares, ...displaced],
+    playedSongIds: [
+      ...state.playedSongIds.filter((id) => !out.has(id)),
+      ...chosen.map((s) => s.id),
+    ],
+  };
 }
 
 /** Move past any deadline that `now` has already crossed. */
@@ -168,6 +214,7 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
           roundIndex: 0,
           rounds: newRounds(action.songs),
           spares: action.spares,
+          reprises: action.reprises ?? [],
           finales: action.finales ?? [],
           pause: null,
           players: state.players.map((p) => ({ ...p, score: 0 })),

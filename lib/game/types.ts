@@ -59,6 +59,12 @@ export interface RoomState {
   roundIndex: number;
   /** Swapped in when a preview refuses to play. */
   spares: Song[];
+  /**
+   * One more song by each artist heard in the early rounds. On the way into
+   * the album rounds the game picks from these, by who got what right, so
+   * the album questions are about artists people in the room know.
+   */
+  reprises: Song[];
   /** What the host plays over the final scores, in order, each fading into the next. */
   finales: Song[];
   /** Set while someone has the game paused. Every deadline waits for it. */
@@ -74,7 +80,7 @@ export type Action =
   | { type: 'join'; playerId: string; token: string; name: string }
   | { type: 'rename'; playerId: string; name: string }
   | { type: 'remove-player'; playerId: string }
-  | { type: 'start'; songs: Song[]; spares: Song[]; finales?: Song[] }
+  | { type: 'start'; songs: Song[]; spares: Song[]; finales?: Song[]; reprises?: Song[] }
   | { type: 'pause'; by: string }
   | { type: 'resume' }
   | { type: 'audio-started'; roundIndex: number }

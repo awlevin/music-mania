@@ -29,7 +29,9 @@ plays from where they are sitting. Nothing to install, no accounts.
 3. **Fifteen seconds of a song play.** The record spins, the timer ring runs
    down, and every phone asks one question. The first three rounds want the
    **title**, then three want the **artist**, two want the **year**, and the
-   last two want the **album**.
+   last two want the **album**. The album rounds are the hard ones, so they
+   are not drawn cold: they go back to artists from earlier in the game,
+   picked by who got what right so that more than one person has a shot.
 4. **Type it and lock it in.** A right answer is worth 1000 points at the
    first second and 500 at the buzzer, so speed is most of the game. Matching
    is forgiving: typos, a missing apostrophe, a dropped "The" and the

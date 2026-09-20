@@ -120,6 +120,7 @@ export function ShufflePreview({ initial }: { initial: GameDraw }) {
   const decades = tally(asked, decade, byDecade);
   const genres = tally(asked, (s) => s.genre);
   const [opener, ...encores] = draw.finales;
+  const firstAlbum = draw.rounds.findIndex((r) => r.kind === 'album');
 
   return (
     <main className={styles.page}>
@@ -130,7 +131,8 @@ export function ShufflePreview({ initial }: { initial: GameDraw }) {
       <h1 className={styles.title}>Shuffle preview</h1>
       <p className={styles.lead}>
         Each draw is what pressing Start would have queued for a fresh room: ten questions, three
-        spares, and the finale. No artist twice, and any song with an open report sits out.
+        spares, the reprises the album rounds pick from, and the finale. No artist twice, and any
+        song with an open report sits out.
       </p>
 
       <div className={styles.controls}>
@@ -205,6 +207,29 @@ export function ShufflePreview({ initial }: { initial: GameDraw }) {
           </ol>
         </section>
 
+        {draw.reprises.length > 0 && (
+          <section className={styles.group} data-tone="album">
+            <h2 className={styles.groupTitle}>
+              <span className={styles.groupKind}>Reprises</span>
+              <span className={styles.groupRange}>
+                One more song by each artist from rounds 1–{firstAlbum}. Just before the album
+                rounds, the ones whose artists the most people got right take those rounds
+              </span>
+            </h2>
+            <ol className={styles.cards}>
+              {draw.reprises.map((song, i) => (
+                <SongCard
+                  key={song.id}
+                  song={song}
+                  tab={`R${i + 1}`}
+                  asked="album"
+                  index={draw.rounds.length + draw.spares.length + i}
+                />
+              ))}
+            </ol>
+          </section>
+        )}
+
         {opener && (
           <section className={styles.group}>
             <h2 className={styles.groupTitle}>
@@ -212,7 +237,11 @@ export function ShufflePreview({ initial }: { initial: GameDraw }) {
               <span className={styles.groupRange}>Plays over the final scores</span>
             </h2>
             <ol className={styles.cards}>
-              <SongCard song={opener} tab="♪" index={draw.rounds.length + draw.spares.length} />
+              <SongCard
+                song={opener}
+                tab="♪"
+                index={draw.rounds.length + draw.spares.length + draw.reprises.length}
+              />
             </ol>
             {encores.length > 0 && (
               <p className={styles.encores}>

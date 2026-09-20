@@ -19,20 +19,23 @@ export interface GameDraw {
   spares: Song[];
   /** In the order they would play over the final scores. */
   finales: Song[];
+  /** What the album rounds may become, depending on who gets what right. */
+  reprises: Song[];
   drawnAt: number;
 }
 
-export function layOut(songs: Song[], finales: Song[], drawnAt: number): GameDraw {
+export function layOut(songs: Song[], finales: Song[], reprises: Song[], drawnAt: number): GameDraw {
   return {
     rounds: ROUND_KINDS.map((kind, i) => ({ kind, song: songs[i] })),
     spares: songs.slice(ROUNDS_PER_GAME),
     finales,
+    reprises,
     drawnAt,
   };
 }
 
 /** A fresh room's first game: nothing heard yet, no finale to avoid. */
 export async function drawGame(): Promise<GameDraw> {
-  const { songs, finales } = await drawSongs(ROUNDS_PER_GAME + SPARE_SONGS, []);
-  return layOut(songs, finales, Date.now());
+  const { songs, finales, reprises } = await drawSongs(ROUNDS_PER_GAME + SPARE_SONGS, []);
+  return layOut(songs, finales, reprises, Date.now());
 }
