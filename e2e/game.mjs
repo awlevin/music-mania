@@ -6,6 +6,8 @@ import { mkdirSync, readFileSync } from 'node:fs';
 
 import { chromium, devices } from 'playwright';
 
+import { fakeAudio } from './fake-audio.mjs';
+
 const BASE = process.env.BASE_URL ?? 'http://localhost:3210';
 const ROUNDS = Number(process.env.ROUNDS ?? 10);
 const NAMES = ['Ana', 'Benedict', 'Chidi'];
@@ -19,6 +21,8 @@ const catalog = [...read('catalog.json'), ...finales];
 const KIND_FIELD = { song: 'title', artist: 'artist', year: 'year', album: 'album' };
 
 const browser = await chromium.launch({
+  // A Chromium already on the machine, when Playwright's own is not installed.
+  executablePath: process.env.CHROMIUM || undefined,
   args: ['--autoplay-policy=no-user-gesture-required', '--mute-audio'],
 });
 const problems = [];
@@ -39,6 +43,7 @@ host.on('request', (r) => {
   const song = catalog.find((s) => s.previewUrl.split('/').pop() === file);
   if (song && !requested.includes(song)) requested.push(song);
 });
+await fakeAudio(host);
 await host.goto(BASE);
 // Playwright hides carets by styling inputs; do that after hydration, not during it.
 await host.waitForLoadState('networkidle');
@@ -53,6 +58,7 @@ for (const name of NAMES) {
   const ctx = await browser.newContext({ ...devices['iPhone 14'] });
   const page = await ctx.newPage();
   watch(page, name);
+  await fakeAudio(page);
   await page.goto(`${BASE}/play/${code}`);
   await page.waitForLoadState('networkidle');
   if (name === NAMES[0]) await page.screenshot({ path: `${SHOTS}02-phone-join.png` });

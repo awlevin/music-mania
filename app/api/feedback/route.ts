@@ -1,3 +1,4 @@
+import { findSong } from '@/lib/catalog';
 import { addFeedback, allow, listFeedback, toPublic } from '@/lib/feedback/store';
 import { type Feedback, SONG_ISSUES, type SongIssue } from '@/lib/feedback/types';
 import { identify, normalizeCode } from '@/lib/realtime/rooms';
@@ -15,6 +16,10 @@ interface Body {
   text?: string;
   code?: string;
   token?: string;
+  /** Quick play has no room: the screen names the song it is looking at. */
+  songId?: number;
+  questionKind?: string;
+  answer?: string;
 }
 
 /** Everything, for whoever works the queue; the public fields, for everyone else. */
@@ -66,6 +71,18 @@ export async function POST(request: Request): Promise<Response> {
         const { id, title, artist, album, year } = round.song;
         song = { id, title, artist, album, year };
       }
+    }
+  }
+  // A quick-play game has no room to ask. It says which song, and the
+  // catalog vouches that the song exists.
+  if (!room && Number.isSafeInteger(body.songId)) {
+    const found = findSong(body.songId as number);
+    if (found) {
+      const { id, title, artist, album, year } = found;
+      song = { id, title, artist, album, year };
+      context.from = 'solo';
+      if (typeof body.questionKind === 'string') context.questionKind = body.questionKind.slice(0, 20);
+      if (typeof body.answer === 'string') context.answer = body.answer.slice(0, 200);
     }
   }
   if (kind === 'song' && !song) {

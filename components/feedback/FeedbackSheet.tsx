@@ -13,11 +13,13 @@ interface Props {
   token?: string | null;
   /** The song on screen, once revealed. Offers "report this song". */
   songTitle?: string;
+  /** Quick play only, where there is no room to ask: the song, and what was typed for it. */
+  solo?: { songId: number; questionKind: string; answer?: string };
   onClose: () => void;
 }
 
 /** Tell us what is wrong. The room's context rides along by itself. */
-export function FeedbackSheet({ code, token, songTitle, onClose }: Props) {
+export function FeedbackSheet({ code, token, songTitle, solo, onClose }: Props) {
   const [issue, setIssue] = useState<SongIssue | null>(null);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
@@ -36,7 +38,7 @@ export function FeedbackSheet({ code, token, songTitle, onClose }: Props) {
       const res = await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ kind: aboutSong ? 'song' : 'note', issue, text, code, token }),
+        body: JSON.stringify({ kind: aboutSong ? 'song' : 'note', issue, text, code, token, ...solo }),
       });
       const data = (await res.json()) as { id?: string; error?: string };
       if (!res.ok || !data.id) setError(data.error ?? 'That did not send. Try again.');

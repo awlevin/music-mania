@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { send } from '@/lib/client/api';
 import { getJukebox, type Jukebox } from '@/lib/client/jukebox';
 import { REVEAL_MS } from '@/lib/game/config';
 import type { RoomView } from '@/lib/game/types';
@@ -26,13 +25,8 @@ const FINALE_CROSSFADE = 3;
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** The round cannot begin until this lands, so one dropped request must not stall the room. */
-async function sendUntilHeard(code: string, token: string, action: { type: string; roundIndex: number }) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    if ((await send(code, token, action)).ok) return;
-    await wait(400 * (attempt + 1));
-  }
-}
+/** What the director tells the room about the audio: it began, or it would not. */
+export type AudioReport = { type: 'audio-started' | 'audio-failed'; roundIndex: number };
 
 export interface Director {
   jukebox: Jukebox | null;
@@ -47,15 +41,17 @@ export interface Director {
 /**
  * Keeps the jukebox in step with the room. Between songs it fades the old one
  * out while the next loads on the other deck, swings the needle in, and only
- * when sound is actually out tells the server the round has begun, so the 15
+ * when sound is actually out tells the room the round has begun, so the 15
  * seconds start when the room can hear music.
+ *
+ * `report` is how it tells the room: the host screen posts to the server, a
+ * solo game reduces in place. Null while this screen has no say in the room.
  */
 export function useDirector(
-  code: string,
-  token: string | null,
   view: RoomView | null,
   clockOffset: number,
   lobbyMusic: boolean,
+  report: ((action: AudioReport) => Promise<void>) | null,
 ): Director {
   const [jukebox] = useState(() => (typeof window === 'undefined' ? null : getJukebox()));
   /** Whether the browser currently lets this page make sound. */
@@ -106,7 +102,7 @@ export function useDirector(
   }, [jukebox, unlocked, paused, phase, roundKey, revealStartedAt, clockOffset]);
 
   useEffect(() => {
-    if (!jukebox || !token || phase === undefined || !unlocked) return;
+    if (!jukebox || !report || phase === undefined || !unlocked) return;
     const stillCued = (key: string) => cued.current === key;
 
     if (phase === 'lobby') {
@@ -157,7 +153,7 @@ export function useDirector(
           if (!current()) return;
           await jukebox.start({ fadeIn: FADE_IN });
           if (!current()) return;
-          await sendUntilHeard(code, token, { type: 'audio-started', roundIndex });
+          await report({ type: 'audio-started', roundIndex });
         } else {
           // The host page was reloaded mid-song: rejoin it where it should be.
           await jukebox.cue(previewUrl);
@@ -171,13 +167,13 @@ export function useDirector(
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
           setUnlocked(false);
         } else if (phase === 'loading') {
-          await sendUntilHeard(code, token, { type: 'audio-failed', roundIndex });
+          await report({ type: 'audio-failed', roundIndex });
         }
       }
     })();
     // guessStartedAt, clockOffset, introMs and finaleUrls are read once, when the thing is cued.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jukebox, token, code, phase, roundKey, nextPreviewUrl, finaleKey, lobbyUrl, lobbyMusic, unlocked]);
+  }, [jukebox, report, phase, roundKey, nextPreviewUrl, finaleKey, lobbyUrl, lobbyMusic, unlocked]);
 
   return {
     jukebox,

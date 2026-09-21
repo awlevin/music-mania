@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { ANSWER_GRACE_MS, GUESS_MS, REVEAL_MS } from '@/lib/game/config';
+import { phaseDeadline } from '@/lib/game/deadline';
 import type { RoomView } from '@/lib/game/types';
 
 import { send } from './api';
@@ -14,19 +14,6 @@ export interface RoomConnection {
   status: RoomStatus;
   /** Add to Date.now() to get the server's clock. */
   clockOffset: number;
-}
-
-/** When the current phase must end, on the server's clock. */
-function deadline(view: RoomView): number | null {
-  const round = view.round;
-  if (!round) return null;
-  if (view.phase === 'guessing' && round.guessStartedAt !== null) {
-    return round.guessStartedAt + GUESS_MS + ANSWER_GRACE_MS;
-  }
-  if (view.phase === 'reveal' && round.revealStartedAt !== null) {
-    return round.revealStartedAt + REVEAL_MS;
-  }
-  return null;
 }
 
 /**
@@ -82,7 +69,7 @@ export function useRoom(code: string, token: string | null, tickDelayMs: number)
     const timer = setInterval(() => {
       const { view: current, offset } = latest.current;
       if (!current || current.pause) return;
-      const due = deadline(current);
+      const due = phaseDeadline(current);
       if (due === null) return;
       const now = Date.now() + offset;
       if (now < due + tickDelayMs || Date.now() - lastTick < 2000) return;

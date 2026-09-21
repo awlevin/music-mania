@@ -118,6 +118,27 @@ export function Key({ variant = 'cherry', block, className = '', ...rest }: KeyP
   );
 }
 
+/** A Key that goes somewhere instead of doing something. */
+export function KeyLink({
+  href,
+  variant = 'cherry',
+  block,
+  className = '',
+  children,
+}: {
+  href: string;
+  variant?: KeyProps['variant'];
+  block?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link href={href} className={`${styles.key} ${className}`} data-variant={variant} data-block={block}>
+      {children}
+    </Link>
+  );
+}
+
 export function Field({
   className = '',
   ref,
