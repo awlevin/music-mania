@@ -84,6 +84,17 @@ export function matchesText(guess: string, answer: string): boolean {
 }
 
 /**
+ * "Queen & David Bowie" and "Queen" are the same act: the one whose name
+ * comes first. Used wherever two songs count as "by the same artist".
+ */
+export function leadArtist(artist: string): string {
+  return artist
+    .split(/\s*(?:,|&|\bfeat\.?|\bft\.?|\bfeaturing\b|\bwith\b)\s*/i)[0]
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Artists also match on any one credited name: "Queen" is right for
  * "Queen & David Bowie", and so is "David Bowie".
  */
