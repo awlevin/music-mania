@@ -276,6 +276,7 @@
   gap: 1.2em;
   align-self: stretch;
   justify-content: center;
+  min-height: 0;
 }
 
 .lobbyPlayers {
@@ -283,7 +284,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 0.6em;
   align-content: start;
-  min-height: 19em;
+  min-height: 15em;
 }
 
 .lobbyEmpty {
@@ -316,15 +317,194 @@
   color: var(--ink);
 }
 
-.lobbyStart {
+.startBar {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 1.4em;
+  flex-direction: column;
+  width: 100%;
 }
 
-.lobbyStart p {
+.lobbyStart {
+  display: flex;
+  align-items: stretch;
+  gap: 0.8em;
+}
+
+.startNote {
+  margin-top: 1em;
   font-size: 1.05em;
   color: var(--chrome);
+}
+
+/* --- Difficulty ---------------------------------------------------------- */
+
+/* Beside the start key and as tall: the preset's name over the years it covers. */
+.lobbyStart button.setupKey {
+  justify-content: space-between;
+  gap: 1em;
+  min-width: 9.5em;
+  padding: 0 1.1em 0 1.3em;
+  font-size: 1em;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  transition:
+    transform 90ms var(--ease-out),
+    background 150ms,
+    color 150ms;
+}
+
+.lobbyStart button.setupKey:hover,
+.lobbyStart button.setupKey[aria-expanded='true'] {
+  background: rgb(255 255 255 / 0.07);
+  color: var(--paper);
+  filter: none;
+}
+
+.setupKeyText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  line-height: 1;
+}
+
+.setupKeyText strong {
+  display: block;
+  font-size: 1.3em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--butter);
+}
+
+.setupKeyText span {
+  display: block;
+  font-size: 0.95em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.setupKey svg {
+  flex: none;
+  font-size: 1.2em;
+  transition: transform 300ms var(--ease-spring);
+}
+
+/* The panel opens upward, so the chevron points up until it has. */
+.setupKey svg {
+  transform: rotate(180deg);
+}
+
+.setupKey[aria-expanded='true'] svg {
+  transform: none;
+}
+
+/* Floats over the player list, so opening it moves nothing. */
+.setupPanel {
+  position: absolute;
+  bottom: calc(100% + 0.9em);
+  left: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  width: min(100%, 34em);
+  padding: 0.9em;
+  border-radius: var(--radius-key);
+  background: var(--booth);
+  box-shadow:
+    inset 0 0 0 0.1em var(--booth-line),
+    0 1.2em 3em rgb(0 0 0 / 0.55);
+  transform-origin: 9em 100%;
+}
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5em;
+}
+
+.presets button {
+  padding: 0.6em 0.9em;
+  border: 0;
+  border-radius: var(--radius-strip);
+  background: var(--booth-lift);
+  color: var(--chrome);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms,
+    box-shadow 150ms;
+}
+
+.presets button:hover {
+  color: var(--paper);
+}
+
+.presets button[aria-checked='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 0.22em 0 var(--paper-shade);
+}
+
+.decadeChips {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.4em;
+}
+
+.decadeChips button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.6em 0 0.5em;
+  border: 0;
+  border-radius: var(--radius-strip);
+  background: transparent;
+  color: var(--chrome);
+  box-shadow: inset 0 0 0 0.1em var(--booth-line);
+  font-family: var(--font-strip), sans-serif;
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background 150ms,
+    color 150ms,
+    box-shadow 150ms,
+    transform 300ms var(--ease-spring);
+}
+
+.decadeChips button:hover {
+  color: var(--paper);
+}
+
+.decadeIcon {
+  flex: none;
+  font-size: 1.5em;
+}
+
+.decadeChips button[aria-pressed='true'] {
+  background: var(--butter);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.decadeChips button:active {
+  transform: scale(0.94);
+}
+
+.decadeChips button[aria-disabled='true'] {
+  cursor: not-allowed;
 }
 
 /* --- Game ---------------------------------------------------------------- */
@@ -680,6 +860,16 @@
   font-weight: 400;
   line-height: 1;
   color: var(--butter);
+}
+
+/* Under the winner everything is centred, the start bar too. */
+.winner .startBar {
+  align-items: center;
+  width: min(100%, 34em);
+}
+
+.winner .setupPanel {
+  transform-origin: 50% 100%;
 }
 
 .winnerStrip {

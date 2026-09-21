@@ -11,6 +11,7 @@ import { useLinerNote } from '@/lib/client/useLinerNote';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, MAX_ANSWER_LENGTH, MAX_NAME_LENGTH, REVEAL_MS } from '@/lib/game/config';
+import { describeDecades, setupName } from '@/lib/game/decades';
 import { KINDS } from '@/lib/game/kinds';
 import { rankPlayers } from '@/lib/game/rank';
 import type { RoomView } from '@/lib/game/types';
@@ -315,6 +316,10 @@ function LobbyView({ view, token, onLeft }: { view: RoomView; token: string; onL
           : `Watch the big screen. ${view.players[0]?.name ?? 'The host'} starts the game.`}
       </p>
       {leader && <StartKey view={view} token={token} label="Start game" />}
+      <p className={styles.small}>
+        {setupName(view.setup.decades)} · {describeDecades(view.setup.decades)}
+        {leader && '. Change it on the big screen.'}
+      </p>
       <div className={styles.list}>
         {view.players.map((p, i) => (
           <PlayerChip key={p.id} rank={i + 1} name={p.name} me={p.id === view.you!.id} />

@@ -15,6 +15,7 @@ import {
   REVEAL_MS,
   ROUND_KINDS,
 } from './config';
+import { defaultSetup, isValidSetup } from './decades';
 import { grade } from './score';
 import type { Action, ReduceResult, RoomState, Round, Song } from './types';
 
@@ -37,6 +38,7 @@ export function createRoom(
     pause: null,
     lobbyUrl,
     playedSongIds: [],
+    setup: defaultSetup(),
     createdAt: now,
   };
 }
@@ -152,6 +154,15 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
       const next = { ...state, players };
       // Nobody should wait on a player who has gone.
       return { ok: true, state: allAnswered(next) ? startReveal(next, now) : next };
+    }
+
+    case 'setup': {
+      if (state.phase !== 'lobby' && state.phase !== 'finished') {
+        return fail('Change the decades between games.');
+      }
+      const setup = { decades: action.decades.slice().sort((a, b) => a - b) };
+      if (!isValidSetup(setup)) return fail('Pick at least one decade.');
+      return { ok: true, state: { ...state, setup } };
     }
 
     case 'start': {

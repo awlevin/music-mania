@@ -1,3 +1,4 @@
+import { defaultSetup } from './decades';
 import type { RoomState, RoomView, RoundView } from './types';
 
 export type Viewer = { role: 'host' } | { role: 'player'; playerId: string };
@@ -44,6 +45,8 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
     })),
     round: roundView,
     pause: state.pause ?? null,
+    // Rooms opened before decades could be picked play as easy.
+    setup: { decades: (state.setup ?? defaultSetup()).decades },
     serverNow: now,
   };
 

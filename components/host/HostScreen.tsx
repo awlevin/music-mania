@@ -2,9 +2,11 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
+  ChevronIcon,
+  DecadeIcon,
   GearIcon,
   IconButton,
   Key,
@@ -23,9 +25,20 @@ import { useJoinUrl } from '@/lib/client/useJoinUrl';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, REVEAL_MS, ROUND_KINDS } from '@/lib/game/config';
+import {
+  DECADES,
+  DIFFICULTIES,
+  DIFFICULTY_NAME,
+  decadeName,
+  describeDecades,
+  presetDecades,
+  presetOf,
+  setupName,
+  toggleDecade,
+} from '@/lib/game/decades';
 import { KINDS } from '@/lib/game/kinds';
 import { rankPlayers } from '@/lib/game/rank';
-import type { QuestionKind, RevealedAnswer, RoomView } from '@/lib/game/types';
+import type { QuestionKind, RevealedAnswer, RoomView, Setup } from '@/lib/game/types';
 
 import { Confetti } from './Confetti';
 import { Halo } from './Halo';
@@ -362,21 +375,193 @@ function Lobby({ view, token, director }: { view: RoomView; token: string; direc
           )}
         </div>
 
-        <div className={styles.lobbyStart}>
-          <Key onClick={() => void start()} disabled={view.players.length === 0 || starting}>
-            {starting ? 'Picking songs…' : 'Start game'}
-          </Key>
-          <p role="alert">
-            {error ||
-              (view.players[0]
-                ? `${view.players[0].name} can also start it from their phone.`
-                : '10 songs. 15 seconds each. Faster answers score more.')}
-          </p>
-        </div>
+        <StartBar
+          view={view}
+          token={token}
+          label={starting ? 'Picking songs…' : 'Start game'}
+          disabled={view.players.length === 0 || starting}
+          onStart={() => void start()}
+          note={
+            error ||
+            (view.players[0]
+              ? `${view.players[0].name} can also start it from their phone.`
+              : '10 songs. 15 seconds each. Faster answers score more.')
+          }
+        />
         {director.needsClick && (
           <p className={styles.soundNote}>Click anywhere on this screen once, so it can play sound.</p>
         )}
       </section>
+    </div>
+  );
+}
+
+const PANEL_EASE = [0.2, 0.8, 0.2, 1] as const;
+
+const PANEL = {
+  closed: { opacity: 0, y: 10, scale: 0.97, transition: { duration: 0.16, ease: PANEL_EASE } },
+  open: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.26, ease: PANEL_EASE, delayChildren: 0.05, staggerChildren: 0.07 },
+  },
+};
+
+const PANEL_ROWS = {
+  closed: { opacity: 0, y: 8 },
+  open: { opacity: 1, y: 0, transition: { duration: 0.28, ease: PANEL_EASE } },
+};
+
+const LABEL_SWAP = {
+  initial: { opacity: 0, y: '0.5em' },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: '-0.5em' },
+  transition: { duration: 0.18 },
+};
+
+/**
+ * The key that starts a game, and beside it what the game draws from. That
+ * second key names the preset and nothing else; it opens a panel with Easy,
+ * Medium and Hard above the decades they switch on. Any decade can then be
+ * switched on or off by hand. The panel floats, so nothing on the stage moves.
+ * The choice lives in the room, so a phone that starts the game gets the same
+ * songs.
+ */
+function StartBar({
+  view,
+  token,
+  label,
+  disabled,
+  onStart,
+  note,
+}: {
+  view: RoomView;
+  token: string;
+  label: string;
+  disabled: boolean;
+  onStart: () => void;
+  note: string;
+}) {
+  const [open, setOpen] = useState(false);
+  // What this screen just asked for, shown until the room catches up.
+  const [draft, setDraft] = useState<Setup | null>(null);
+  const [error, setError] = useState('');
+  // One request at a time, so quick taps reach the room in the order they were made.
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const bar = useRef<HTMLDivElement>(null);
+  const setup = draft ?? view.setup;
+
+  // A press anywhere else puts the panel away.
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (!bar.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+
+  if (draft && draft.decades.join() === view.setup.decades.join()) setDraft(null);
+
+  const apply = (next: Setup) => {
+    if (next.decades.join() === setup.decades.join()) return;
+    setError('');
+    setDraft(next);
+    queue.current = queue.current.then(async () => {
+      const result = await send(view.code, token, { type: 'setup', ...next });
+      if (!result.ok) {
+        setError(result.error);
+        setDraft(null);
+      }
+    });
+  };
+
+  const preset = presetOf(setup.decades);
+  const name = setupName(setup.decades);
+  const range = describeDecades(setup.decades);
+
+  return (
+    <div ref={bar} className={styles.startBar} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+      <div className={styles.lobbyStart}>
+        <Key onClick={onStart} disabled={disabled}>
+          {label}
+        </Key>
+        <Key
+          variant="quiet"
+          className={styles.setupKey}
+          aria-expanded={open}
+          aria-controls="game-setup"
+          aria-label={`Difficulty: ${name}, ${range}`}
+          onClick={() => setOpen(!open)}
+        >
+          <span className={styles.setupKeyText}>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.strong key={name} {...LABEL_SWAP}>
+                {name}
+              </motion.strong>
+            </AnimatePresence>
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span key={range} {...LABEL_SWAP}>
+                {range}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+          <ChevronIcon />
+        </Key>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="panel"
+            id="game-setup"
+            className={styles.setupPanel}
+            role="group"
+            aria-label="Difficulty and decades"
+            initial="closed"
+            animate="open"
+            exit="closed"
+            variants={PANEL}
+          >
+            <motion.div className={styles.presets} role="radiogroup" aria-label="Difficulty" variants={PANEL_ROWS}>
+              {DIFFICULTIES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={d === preset}
+                  onClick={() => apply({ decades: presetDecades(d) })}
+                >
+                  {DIFFICULTY_NAME[d]}
+                </button>
+              ))}
+            </motion.div>
+            <motion.div className={styles.decadeChips} role="group" aria-label="Decades" variants={PANEL_ROWS}>
+              {DECADES.map((decade) => {
+                const lit = setup.decades.includes(decade);
+                return (
+                  <button
+                    key={decade}
+                    type="button"
+                    aria-pressed={lit}
+                    // The last decade stays on: a game needs songs to draw from.
+                    aria-disabled={lit && setup.decades.length === 1}
+                    onClick={() => apply(toggleDecade(setup, decade))}
+                  >
+                    <DecadeIcon decade={decade} className={styles.decadeIcon} />
+                    {decadeName(decade)}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <p className={styles.startNote} role="alert">
+        {error || note}
+      </p>
     </div>
   );
 }
@@ -639,12 +824,14 @@ function Finished({ view, token, director }: { view: RoomView; token: string; di
           label={winners.length > 1 ? 'Tied at number one' : 'Number one'}
           bottom={`${(winners[0]?.score ?? 0).toLocaleString('en-US')} points`}
         />
-        <div className={styles.lobbyStart}>
-          <Key onClick={() => void again()} disabled={starting}>
-            {starting ? 'Picking songs…' : 'Play again'}
-          </Key>
-          <p role="alert">{error || 'Same room, ten new songs.'}</p>
-        </div>
+        <StartBar
+          view={view}
+          token={token}
+          label={starting ? 'Picking songs…' : 'Play again'}
+          disabled={starting}
+          onStart={() => void again()}
+          note={error || 'Same room, ten new songs.'}
+        />
       </section>
       <aside className={styles.board}>
         <h2 className={styles.panelTitle}>Final scores</h2>

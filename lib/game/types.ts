@@ -8,6 +8,17 @@ export type QuestionKind = 'title' | 'artist' | 'year' | 'album';
 
 export type Phase = 'lobby' | 'loading' | 'guessing' | 'reveal' | 'finished';
 
+export type Difficulty = 'easy' | 'medium' | 'hard';
+
+/** What the next game draws from. The host sets it in the lobby. */
+export interface Setup {
+  /**
+   * Start years of the decades to draw from (2010 for the 2010s), oldest
+   * first. At least one. Easy, medium and hard are presets of this list.
+   */
+  decades: number[];
+}
+
 export interface Song {
   /** iTunes trackId. */
   id: number;
@@ -67,6 +78,8 @@ export interface RoomState {
   lobbyUrl: string | null;
   /** Every song this room has heard, so "play again" never repeats one. */
   playedSongIds: number[];
+  /** The decades the next game draws from. */
+  setup: Setup;
   createdAt: number;
 }
 
@@ -74,6 +87,7 @@ export type Action =
   | { type: 'join'; playerId: string; token: string; name: string }
   | { type: 'rename'; playerId: string; name: string }
   | { type: 'remove-player'; playerId: string }
+  | { type: 'setup'; decades: number[] }
   | { type: 'start'; songs: Song[]; spares: Song[]; finales?: Song[] }
   | { type: 'pause'; by: string }
   | { type: 'resume' }
@@ -132,6 +146,8 @@ export interface RoomView {
   pause: { at: number; by: string } | null;
   /** Host only, in the lobby: music to join by. */
   lobbyUrl?: string;
+  /** The decades the next game draws from. */
+  setup: Setup;
   /** Players only. */
   you?: {
     id: string;
