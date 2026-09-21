@@ -158,10 +158,10 @@ function apply(state: RoomState, action: Action, now: number): ReduceResult {
 
     case 'setup': {
       if (state.phase !== 'lobby' && state.phase !== 'finished') {
-        return fail('Change the difficulty between games.');
+        return fail('Change the decades between games.');
       }
-      const setup = { difficulty: action.difficulty, decades: action.decades };
-      if (!isValidSetup(setup)) return fail('That mix of decades does not add up.');
+      const setup = { decades: action.decades.slice().sort((a, b) => a - b) };
+      if (!isValidSetup(setup)) return fail('Pick at least one decade.');
       return { ok: true, state: { ...state, setup } };
     }
 

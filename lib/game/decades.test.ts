@@ -5,59 +5,67 @@ import { drawSongs, fromDecades } from '@/lib/catalog';
 
 import { ROUNDS_PER_GAME, SPARE_SONGS } from './config';
 import {
-  DECADE_COUNT,
   DECADES,
   decadeOf,
   defaultSetup,
   describeDecades,
   isValidSetup,
-  pickDecade,
-  withDifficulty,
+  presetDecades,
+  presetOf,
+  setupName,
+  toggleDecade,
 } from './decades';
 import { createRoom, reduce } from './reducer';
 import type { Song } from './types';
 import { viewFor } from './views';
 
 describe('decades', () => {
-  it('defaults to the most recent decades: two, four or six', () => {
-    expect(defaultSetup()).toEqual({ difficulty: 'easy', decades: [2010, 2020] });
-    expect(defaultSetup('medium').decades).toEqual([1990, 2000, 2010, 2020]);
-    expect(defaultSetup('hard').decades).toEqual([1970, 1980, 1990, 2000, 2010, 2020]);
+  it('presets are the most recent decades: two, four or six', () => {
+    expect(defaultSetup()).toEqual({ decades: [2010, 2020] });
+    expect(presetDecades('medium')).toEqual([1990, 2000, 2010, 2020]);
+    expect(presetDecades('hard')).toEqual([1970, 1980, 1990, 2000, 2010, 2020]);
   });
 
-  it('swaps a new decade in for the pick made longest ago', () => {
+  it('switches a decade on or off, and leaves the rest alone', () => {
     let setup = defaultSetup();
-    setup = pickDecade(setup, 1980);
-    expect(setup.decades).toEqual([2020, 1980]);
-    setup = pickDecade(setup, 1960);
-    expect(setup.decades).toEqual([1980, 1960]);
-    // Already in: nothing happens. Unknown: nothing happens.
-    expect(pickDecade(setup, 1980)).toBe(setup);
-    expect(pickDecade(setup, 1950)).toBe(setup);
-    expect(isValidSetup(setup)).toBe(true);
+    setup = toggleDecade(setup, 1980);
+    expect(setup.decades).toEqual([1980, 2010, 2020]);
+    setup = toggleDecade(setup, 2010);
+    expect(setup.decades).toEqual([1980, 2020]);
+    setup = toggleDecade(setup, 1980);
+    expect(setup.decades).toEqual([2020]);
+    // The last one stays on. Unknown: nothing happens.
+    expect(toggleDecade(setup, 2020)).toBe(setup);
+    expect(toggleDecade(setup, 1950)).toBe(setup);
   });
 
-  it('keeps the picks that fit when the difficulty changes, and fills with recent decades', () => {
-    const custom = pickDecade(pickDecade(defaultSetup(), 1980), 1990);
-    expect(custom.decades).toEqual([1980, 1990]);
-    const medium = withDifficulty(custom, 'medium');
-    expect(medium).toEqual({ difficulty: 'medium', decades: [1980, 1990, 2010, 2020] });
-    const easy = withDifficulty(medium, 'easy');
-    expect(easy.decades).toEqual([2010, 2020]);
-    expect(withDifficulty(defaultSetup(), 'hard')).toEqual(defaultSetup('hard'));
+  it('names a preset only while the decades match it', () => {
+    expect(presetOf([2020, 2010])).toBe('easy');
+    expect(setupName(presetDecades('hard'))).toBe('Hard');
+    const mix = toggleDecade(defaultSetup(), 1960);
+    expect(presetOf(mix.decades)).toBeNull();
+    expect(setupName(mix.decades)).toBe('Your mix');
+    // Switch it back off and it is easy again.
+    expect(presetOf(toggleDecade(mix, 1960).decades)).toBe('easy');
   });
 
-  it('accepts only known decades, none twice, as many as the difficulty asks for', () => {
-    expect(isValidSetup({ difficulty: 'easy', decades: [2020] })).toBe(false);
-    expect(isValidSetup({ difficulty: 'easy', decades: [2020, 2020] })).toBe(false);
-    expect(isValidSetup({ difficulty: 'easy', decades: [2020, 2030] })).toBe(false);
-    expect(isValidSetup({ difficulty: 'hard', decades: [1960, 1970, 1980, 1990, 2000, 2010] })).toBe(true);
+  it('accepts any mix of known decades, none twice, at least one', () => {
+    expect(isValidSetup({ decades: [] })).toBe(false);
+    expect(isValidSetup({ decades: [2020, 2020] })).toBe(false);
+    expect(isValidSetup({ decades: [2020, 2030] })).toBe(false);
+    expect(isValidSetup({ decades: [1960] })).toBe(true);
+    expect(isValidSetup({ decades: [...DECADES] })).toBe(true);
   });
 
-  it('describes the decades in order, however they were picked', () => {
-    expect(describeDecades([2020, 1980])).toBe('the 1980s and 2020s');
-    expect(describeDecades([1990, 2000, 2010, 2020])).toBe('the 1990s, 2000s, 2010s and 2020s');
-    expect(describeDecades([1970])).toBe('the 1970s');
+  it('describes the decades in a few characters', () => {
+    expect(describeDecades([2010, 2020])).toBe('2010–now');
+    expect(describeDecades(presetDecades('hard'))).toBe('1970–now');
+    expect(describeDecades([1980, 1960, 1970])).toBe('1960s–1980s');
+    expect(describeDecades([1970])).toBe('1970s');
+    expect(describeDecades([2020, 1980])).toBe('1980s, 2020s');
+    expect(describeDecades([1960, 1970, 1980, 2000, 2010, 2020])).toBe('1960s–1980s, 2000–now');
+    expect(describeDecades([1960, 1980, 2020])).toBe('1960s, 1980s, 2020s');
+    expect(describeDecades([1960, 1980, 2000, 2020])).toBe('4 decades');
   });
 
   it('has enough songs in every decade for a game on its own', () => {
@@ -81,16 +89,17 @@ describe('room setup', () => {
     let state = createRoom('ABCD', 'h', 0);
     expect(viewFor(state, { role: 'host' }, 0).setup).toEqual(defaultSetup());
 
-    const result = reduce(state, { type: 'setup', difficulty: 'hard', decades: [1960, 1970, 1980, 1990, 2000, 2010] }, 1);
+    // Decades arrive in the order they were tapped and are stored oldest first.
+    const result = reduce(state, { type: 'setup', decades: [2020, 1960, 1980] }, 1);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     state = result.state;
-    expect(state.setup.difficulty).toBe('hard');
-    expect(state.setup.decades).toHaveLength(DECADE_COUNT.hard);
+    expect(state.setup.decades).toEqual([1960, 1980, 2020]);
     expect(viewFor(state, { role: 'player', playerId: 'x' }, 1).setup).toEqual(state.setup);
 
-    expect(reduce(state, { type: 'setup', difficulty: 'easy', decades: [2020] }, 2).ok).toBe(false);
-    expect(reduce(state, { type: 'setup', difficulty: 'easy', decades: [2020, 2020] }, 2).ok).toBe(false);
+    expect(reduce(state, { type: 'setup', decades: [] }, 2).ok).toBe(false);
+    expect(reduce(state, { type: 'setup', decades: [2020, 2020] }, 2).ok).toBe(false);
+    expect(reduce(state, { type: 'setup', decades: [1950] }, 2).ok).toBe(false);
   });
 
   it('cannot change once the songs are drawn', () => {
@@ -110,6 +119,6 @@ describe('room setup', () => {
     const started = reduce(join.state, { type: 'start', songs, spares: [] }, 1);
     if (!started.ok) throw new Error(started.error);
     state = started.state;
-    expect(reduce(state, { type: 'setup', difficulty: 'medium', decades: [1990, 2000, 2010, 2020] }, 2).ok).toBe(false);
+    expect(reduce(state, { type: 'setup', decades: [1990, 2000, 2010, 2020] }, 2).ok).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
-// Difficulty is how far back the songs reach. Easy draws from two decades,
-// medium from four, hard from six; the most recent ones unless the host picks
-// others. The catalog covers the 1960s to the 2020s.
+// A game draws from the decades the host has switched on. Easy, medium and
+// hard are presets: the two, four or six most recent decades. They are a
+// starting point, not a limit, so any mix of decades is a valid game. The
+// catalog covers the 1960s to the 2020s.
 
 import type { Difficulty, Setup } from './types';
 
@@ -9,7 +10,7 @@ export const DECADES: readonly number[] = [1960, 1970, 1980, 1990, 2000, 2010, 2
 
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard'];
 
-/** How many decades a game draws from at each difficulty. */
+/** How many decades back each preset reaches. */
 export const DECADE_COUNT: Record<Difficulty, number> = { easy: 2, medium: 4, hard: 6 };
 
 export const DIFFICULTY_NAME: Record<Difficulty, string> = {
@@ -18,11 +19,10 @@ export const DIFFICULTY_NAME: Record<Difficulty, string> = {
   hard: 'Hard',
 };
 
-export const DEFAULT_DIFFICULTY: Difficulty = 'easy';
+/** What a mix of decades is called when it matches no preset. */
+export const CUSTOM_NAME = 'Your mix';
 
-export function isDifficulty(value: unknown): value is Difficulty {
-  return DIFFICULTIES.includes(value as Difficulty);
-}
+export const DEFAULT_DIFFICULTY: Difficulty = 'easy';
 
 /** 1987 → 1980. */
 export function decadeOf(year: number): number {
@@ -34,60 +34,73 @@ export function decadeName(decade: number): string {
   return `${decade}s`;
 }
 
-/** The most recent decades, as many as the difficulty asks for, oldest first. */
-export function defaultDecades(difficulty: Difficulty): number[] {
+/** The decades a preset switches on: the most recent ones, oldest first. */
+export function presetDecades(difficulty: Difficulty): number[] {
   return DECADES.slice(-DECADE_COUNT[difficulty]);
 }
 
 export function defaultSetup(difficulty: Difficulty = DEFAULT_DIFFICULTY): Setup {
-  return { difficulty, decades: defaultDecades(difficulty) };
+  return { decades: presetDecades(difficulty) };
 }
 
-/** Known decades, none twice, exactly as many as the difficulty asks for. */
+/** The preset these decades match exactly, in any order; null for a mix of the host's own. */
+export function presetOf(decades: readonly number[]): Difficulty | null {
+  const key = sorted(decades).join();
+  return DIFFICULTIES.find((d) => presetDecades(d).join() === key) ?? null;
+}
+
+/** "Easy", "Medium", "Hard", or "Your mix". */
+export function setupName(decades: readonly number[]): string {
+  const preset = presetOf(decades);
+  return preset ? DIFFICULTY_NAME[preset] : CUSTOM_NAME;
+}
+
+/** At least one decade, all of them known, none twice. */
 export function isValidSetup(setup: Setup): boolean {
   return (
-    isDifficulty(setup.difficulty) &&
-    setup.decades.length === DECADE_COUNT[setup.difficulty] &&
+    Array.isArray(setup.decades) &&
+    setup.decades.length > 0 &&
     new Set(setup.decades).size === setup.decades.length &&
     setup.decades.every((d) => DECADES.includes(d))
   );
 }
 
 /**
- * Pick a decade. One already picked changes nothing; a new one takes the
- * place of the pick made longest ago, so any set of decades is a few taps
- * away and the count never changes.
+ * Switch a decade on or off. The last one stays on: a game needs songs to
+ * draw from. Decades come back oldest first.
  */
-export function pickDecade(setup: Setup, decade: number): Setup {
-  if (!DECADES.includes(decade) || setup.decades.includes(decade)) return setup;
-  const decades = [...setup.decades.slice(-(DECADE_COUNT[setup.difficulty] - 1)), decade];
-  return { ...setup, decades };
+export function toggleDecade(setup: Setup, decade: number): Setup {
+  if (!DECADES.includes(decade)) return setup;
+  if (!setup.decades.includes(decade)) return { ...setup, decades: sorted([...setup.decades, decade]) };
+  if (setup.decades.length === 1) return setup;
+  return { ...setup, decades: setup.decades.filter((d) => d !== decade) };
 }
 
 /**
- * Change the difficulty, keeping as many of the current picks as fit (the
- * most recent ones) and filling any new room with the most recent decades
- * not yet picked.
+ * The decades in a few characters. A run of them reads as a span: "2010–now"
+ * when it reaches the present, "1960s–1980s" when it does not. Two runs read
+ * as two spans, a scattered few are listed, and past that it is "5 decades".
  */
-export function withDifficulty(setup: Setup, difficulty: Difficulty): Setup {
-  if (difficulty === setup.difficulty) return setup;
-  const count = DECADE_COUNT[difficulty];
-  const kept = setup.decades
-    .filter((d) => DECADES.includes(d))
-    .sort((a, b) => a - b)
-    .slice(-count);
-  const room = count - kept.length;
-  const fill = room > 0 ? DECADES.filter((d) => !kept.includes(d)).slice(-room) : [];
-  return { difficulty, decades: [...kept, ...fill].sort((a, b) => a - b) };
+export function describeDecades(decades: readonly number[]): string {
+  const picked = sorted(decades);
+  if (picked.length === 0) return 'Every decade';
+  const runs: number[][] = [];
+  for (const decade of picked) {
+    const run = runs[runs.length - 1];
+    if (run && decade - run[run.length - 1] === 10) run.push(decade);
+    else runs.push([decade]);
+  }
+  if (runs.length <= 2) return runs.map(describeRun).join(', ');
+  return picked.length <= 3 ? picked.map(decadeName).join(', ') : `${picked.length} decades`;
 }
 
-/** "the 2010s and 2020s"; "the 1990s, 2000s, 2010s and 2020s". */
-export function describeDecades(decades: readonly number[]): string {
-  const names = decades
-    .slice()
-    .sort((a, b) => a - b)
-    .map(decadeName);
-  if (names.length === 0) return 'every decade';
-  if (names.length === 1) return `the ${names[0]}`;
-  return `the ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+function describeRun(run: readonly number[]): string {
+  const first = run[0];
+  const last = run[run.length - 1];
+  if (first === last) return decadeName(first);
+  return last === DECADES[DECADES.length - 1] ? `${first}–now` : `${decadeName(first)}–${decadeName(last)}`;
+}
+
+function sorted(decades: readonly number[]): number[] {
+  return decades.slice().sort((a, b) => a - b);
 }

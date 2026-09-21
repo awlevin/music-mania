@@ -1,6 +1,6 @@
 import { pickSongs } from '@/lib/catalog';
 import { ROUNDS_PER_GAME, SPARE_SONGS } from '@/lib/game/config';
-import { defaultSetup, isDifficulty } from '@/lib/game/decades';
+import { defaultSetup } from '@/lib/game/decades';
 import type { Action } from '@/lib/game/types';
 import { dispatch, identify, newPlayerId, newToken, normalizeCode } from '@/lib/realtime/rooms';
 import { getStore } from '@/lib/realtime/store';
@@ -16,7 +16,6 @@ interface Body {
   text?: string;
   playerId?: string;
   roundIndex?: number;
-  difficulty?: string;
   decades?: unknown;
 }
 
@@ -83,9 +82,8 @@ export async function POST(
     if (body.type === 'remove-player' && body.playerId) {
       action = { type: 'remove-player', playerId: body.playerId };
     }
-    if (body.type === 'setup' && isDifficulty(body.difficulty)) {
-      const decades = Array.isArray(body.decades) ? body.decades.map(Number) : [];
-      action = { type: 'setup', difficulty: body.difficulty, decades };
+    if (body.type === 'setup' && Array.isArray(body.decades)) {
+      action = { type: 'setup', decades: body.decades.map(Number) };
     }
   } else {
     const { playerId } = viewer;

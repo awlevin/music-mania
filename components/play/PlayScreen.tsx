@@ -11,7 +11,7 @@ import { useLinerNote } from '@/lib/client/useLinerNote';
 import { useServerNow } from '@/lib/client/useNow';
 import { useRoom } from '@/lib/client/useRoom';
 import { GUESS_MS, MAX_ANSWER_LENGTH, MAX_NAME_LENGTH, REVEAL_MS } from '@/lib/game/config';
-import { DIFFICULTY_NAME, describeDecades } from '@/lib/game/decades';
+import { describeDecades, setupName } from '@/lib/game/decades';
 import { KINDS } from '@/lib/game/kinds';
 import { rankPlayers } from '@/lib/game/rank';
 import type { RoomView } from '@/lib/game/types';
@@ -317,8 +317,8 @@ function LobbyView({ view, token, onLeft }: { view: RoomView; token: string; onL
       </p>
       {leader && <StartKey view={view} token={token} label="Start game" />}
       <p className={styles.small}>
-        {DIFFICULTY_NAME[view.setup.difficulty]} mode: songs from {describeDecades(view.setup.decades)}. The big
-        screen can change that.
+        {setupName(view.setup.decades)} · {describeDecades(view.setup.decades)}
+        {leader && '. Change it on the big screen.'}
       </p>
       <div className={styles.list}>
         {view.players.map((p, i) => (

@@ -45,8 +45,8 @@ export function viewFor(state: RoomState, viewer: Viewer, now: number): RoomView
     })),
     round: roundView,
     pause: state.pause ?? null,
-    // Rooms opened before difficulty existed play as easy.
-    setup: state.setup ?? defaultSetup(),
+    // Rooms opened before decades could be picked play as easy.
+    setup: { decades: (state.setup ?? defaultSetup()).decades },
     serverNow: now,
   };
 

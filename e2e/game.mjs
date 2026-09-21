@@ -65,6 +65,23 @@ await host.getByText(`In the room · ${NAMES.length}`).waitFor();
 await host.screenshot({ path: `${SHOTS}03-host-lobby.png` });
 await phones[0].page.screenshot({ path: `${SHOTS}04-phone-lobby.png` });
 
+// The host wants older songs. Hard is a preset, not a limit: one decade comes
+// off by hand, and the phones hear about it.
+const DECADES = [1970, 1980, 1990, 2000, 2010];
+const setupKey = host.getByRole('button', { name: /^Difficulty/ });
+await setupKey.click();
+await host.getByRole('radio', { name: 'Hard' }).click();
+await host.getByRole('button', { name: /^Difficulty: Hard, 1970–now/ }).waitFor();
+await host.waitForTimeout(500);
+await host.screenshot({ path: `${SHOTS}03-host-lobby-setup.png` });
+await host.getByRole('button', { name: '2020s' }).click();
+await host.getByRole('button', { name: /^Difficulty: Your mix, 1970s–2010s/ }).waitFor();
+await phones[0].page.getByText('Your mix · 1970s–2010s').waitFor();
+await phones[0].page.screenshot({ path: `${SHOTS}04-phone-lobby-setup.png` });
+// A press anywhere else puts the panel away.
+await host.getByRole('heading', { name: 'Scan to play' }).click();
+await host.getByRole('radio', { name: 'Hard' }).waitFor({ state: 'hidden' });
+
 // No phone may ever hold an audio element.
 const silent = async () => {
   for (const { name, page } of phones) {
@@ -185,6 +202,14 @@ await host.waitForTimeout(900);
 await host.screenshot({ path: `${SHOTS}13-host-finished.png` });
 await phones[0].page.screenshot({ path: `${SHOTS}14-phone-finished.png` });
 await phones[2].page.screenshot({ path: `${SHOTS}14-phone-finished-last.png` });
+
+const strays = requested.slice(0, -1).filter((s) => !DECADES.includes(Math.floor(s.year / 10) * 10));
+if (strays.length) problems.push(`songs from outside the picked decades: ${strays.map((s) => `${s.title} (${s.year})`).join(', ')}`);
+// The same key sits beside "Play again", and remembers.
+await host.getByRole('button', { name: /^Difficulty: Your mix/ }).click();
+await host.getByRole('radio', { name: 'Easy' }).waitFor();
+await host.waitForTimeout(500);
+await host.screenshot({ path: `${SHOTS}13-host-finished-setup.png` });
 
 const anaScore = await phones[0].page.locator('[class*=me] strong').textContent();
 console.log('Ana finished on', anaScore);
