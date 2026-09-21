@@ -9,6 +9,9 @@
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** -60 dB. An exponential ramp cannot reach zero, so fades run to here and then cut. */
+const SILENCE = 0.001;
+
 /** A twentieth of a second of silence, as a WAV file. */
 function silence(): string {
   const samples = 2205;
@@ -69,6 +72,8 @@ export class Jukebox {
   /** Bumped to stop a running playlist. */
   private playlistRun = 0;
   private held = false;
+  /** Whether the live deck was playing when the game was paused. */
+  private resumeOnRelease = false;
   private runout: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
 
   /**
@@ -115,13 +120,31 @@ export class Jukebox {
     return this.decks[1 - this.live];
   }
 
+  /**
+   * Fade the deck to `to` over `seconds`. The ramp is exponential, which is
+   * a straight line in decibels: hearing is logarithmic, so a linear ramp
+   * sits at nearly full volume for most of its length and then drops at the
+   * end, while this one is heard to move the whole way.
+   */
   private ramp(deck: Deck, to: number, seconds: number): void {
     if (!deck.gain || !this.context) return;
     const now = this.context.currentTime;
     const gain = deck.gain.gain;
+    // Read before cancelling: cancelling an unfinished ramp can snap the
+    // value back to where that ramp began.
+    const from = Math.max(gain.value, SILENCE);
+    const end = now + Math.max(seconds, 0.02);
     gain.cancelScheduledValues(now);
-    gain.setValueAtTime(gain.value, now);
-    gain.linearRampToValueAtTime(to, now + Math.max(seconds, 0.02));
+    gain.setValueAtTime(from, now);
+    gain.exponentialRampToValueAtTime(Math.max(to, SILENCE), end);
+    if (to < SILENCE) gain.setValueAtTime(0, end);
+  }
+
+  /** Seconds of the song the room is hearing that are left; Infinity until known. */
+  remaining(): number {
+    const { audio } = this.decks[this.live];
+    if (audio.paused || !Number.isFinite(audio.duration)) return audio.paused ? 0 : Infinity;
+    return Math.max(audio.duration - audio.currentTime, 0);
   }
 
   /**
@@ -174,7 +197,10 @@ export class Jukebox {
     if (offset > 0) next.audio.currentTime = offset;
     this.ramp(next, 0, 0);
     this.live = 1 - this.live;
-    if (this.held) return; // It starts when the game does.
+    if (this.held) {
+      this.resumeOnRelease = true; // It starts when the game does.
+      return;
+    }
     await next.audio.play();
     this.ramp(next, volume, fadeIn);
     this.ramp(old, 0, fadeOutOld);
@@ -231,6 +257,8 @@ export class Jukebox {
     if (this.held) return;
     this.held = true;
     const deck = this.decks[this.live];
+    // A song that had already faded out stays out when the game resumes.
+    this.resumeOnRelease = !deck.audio.paused;
     this.ramp(deck, 0, 0.35);
     const loads = deck.loads;
     setTimeout(() => this.held && loads === deck.loads && deck.audio.pause(), 400);
@@ -243,7 +271,7 @@ export class Jukebox {
     this.held = false;
     this.stopRunout();
     const deck = this.decks[this.live];
-    if (!deck.audio.src || deck.audio.ended) return;
+    if (!this.resumeOnRelease || !deck.audio.src || deck.audio.ended) return;
     void deck.audio.play().then(
       () => this.ramp(deck, deck.volume, 0.5),
       () => {},

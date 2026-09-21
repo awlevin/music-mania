@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { send } from '@/lib/client/api';
 import { getJukebox, type Jukebox } from '@/lib/client/jukebox';
+import { REVEAL_MS } from '@/lib/game/config';
 import type { RoomView } from '@/lib/game/types';
 
 /** Time on the "get ready" card before the music starts, so the room can read the question. */
@@ -13,9 +14,13 @@ const ANNOUNCE_MS = 6000;
 /** The tonearm swings in over this long; the music starts as it lands. */
 const NEEDLE_MS = 1100;
 
-/** Seconds. The last song leaves slowly; the next arrives quickly, because its clock is running. */
-const FADE_OUT = 1.6;
-const FADE_IN = 0.7;
+/** Seconds. The next song arrives quickly, because its clock is running. */
+const FADE_IN = 1;
+/** The song leaves over the end of the reveal, and is gone this long before the reveal is. */
+const REVEAL_FADE = 4;
+const REVEAL_FADE_GAP = 0.6;
+/** When the host moves on before that fade has happened, the song leaves under the "get ready" card. */
+const FADE_OUT = 2;
 const LOBBY_FADE = 1.5;
 const FINALE_CROSSFADE = 3;
 
@@ -73,6 +78,7 @@ export function useDirector(
   const previewUrl = view?.round?.previewUrl;
   const nextPreviewUrl = view?.round?.nextPreviewUrl;
   const guessStartedAt = view?.round?.guessStartedAt ?? null;
+  const revealStartedAt = view?.round?.revealStartedAt ?? null;
   const finaleUrls = view?.finaleUrls;
   const finaleKey = finaleUrls?.join('|') ?? '';
   const lobbyUrl = view?.lobbyUrl;
@@ -85,6 +91,19 @@ export function useDirector(
     if (paused) jukebox.hold();
     else jukebox.release();
   }, [jukebox, unlocked, paused]);
+
+  // The song plays on through the answer, then fades out over the last few
+  // seconds of the reveal, or before the preview runs out on its own if that
+  // comes first: a 30 s preview is nearly spent by the end of a full round.
+  // A pause shifts revealStartedAt on resume, which re-arms this.
+  useEffect(() => {
+    if (!jukebox || !unlocked || paused || phase !== 'reveal' || revealStartedAt === null) return;
+    const revealLeft = revealStartedAt + REVEAL_MS - (Date.now() + clockOffset);
+    const songLeft = jukebox.remaining() * 1000;
+    const fadeAfter = Math.min(revealLeft, songLeft) - (REVEAL_FADE + REVEAL_FADE_GAP) * 1000;
+    const timer = setTimeout(() => void jukebox.fadeOut(REVEAL_FADE), Math.max(fadeAfter, 0));
+    return () => clearTimeout(timer);
+  }, [jukebox, unlocked, paused, phase, roundKey, revealStartedAt, clockOffset]);
 
   useEffect(() => {
     if (!jukebox || !token || phase === undefined || !unlocked) return;
